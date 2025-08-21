@@ -1,0 +1,38 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: user-service
+
+  config:
+    import: "vault://secret/user-service"
+
+  cloud:
+    vault:
+      uri: http://127.0.0.1:8200
+      authentication: TOKEN
+      token: ${VAULT_TOKEN:hvs.default-token-here}
+      kv:
+        backend: secret
+        default-context: user-service
+      fail-fast: false
+      connection-timeout: 5000
+      read-timeout: 15000
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/user-service
+    username: postgres
+    password: ${db.password}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
+
+app:
+  jwt:
+    secret: ${jwt.secret}
+    expiration-ms: ${jwt.expiration-ms}
+    refresh-expiration-ms: ${app.jwt.refresh-expiration-ms}
