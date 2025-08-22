@@ -17,7 +17,7 @@ import java.util.UUID;
 @Service
 public class UserService {
 
-    // logging yaratmaliyammi?
+
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
