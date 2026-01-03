@@ -1,68 +1,139 @@
 package com.ecommerce.userservice.security;
 
-import com.ecommerce.userservice.service.CustomUserDetailsService;
-import com.ecommerce.userservice.service.JwtTokenProvider;
+import com.ecommerce.userservice.service.JwtUtil;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
 
 @Component
+@RequiredArgsConstructor
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtTokenProvider jwtTokenProvider;
-    private final CustomUserDetailsService userDetailsService;
+    private final JwtUtil jwtUtil;
 
-    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, CustomUserDetailsService userDetailsService) {
-        this.jwtTokenProvider = jwtTokenProvider;
-        this.userDetailsService = userDetailsService;
-    }
+    private static final String ACCESS_TOKEN_COOKIE = "access_token";
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain) throws ServletException, IOException {
 
-
-        String path = request.getRequestURI();
-        if (path.startsWith("/api/auth/register") ||
-                path.startsWith("/api/auth/login") ||
-                path.startsWith("/api/auth/refresh")) {
+        // Skip authentication for public endpoints
+        String requestUri = request.getRequestURI();
+        if (isPublicEndpoint(requestUri)) {
             filterChain.doFilter(request, response);
             return;
         }
 
+        try {
+            String jwt = extractTokenFromCookie(request);
 
-        final String authHeader = request.getHeader("Authorization");
-        String username = null;
-        String token = null;
-
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7);
-            try {
-                username = jwtTokenProvider.getUsernameFromToken(token);
-            } catch (Exception ignored) {
+            if (jwt != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                authenticateUser(jwt, request);
             }
-        }
-
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
-            if (jwtTokenProvider.validateToken(token, userDetails.getUsername())) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            }
+        } catch (ExpiredJwtException e) {
+            log.debug("JWT token expired for request: {} - {}", requestUri, e.getMessage());
+            handleAuthenticationError(response, HttpServletResponse.SC_UNAUTHORIZED,
+                    "Token expired", "Please refresh your token");
+            return;
+        } catch (JwtException e) {
+            log.warn("JWT validation failed for request: {} - {}", requestUri, e.getMessage());
+            handleAuthenticationError(response, HttpServletResponse.SC_UNAUTHORIZED,
+                    "Invalid token", "Authentication failed");
+            return;
+        } catch (Exception e) {
+            log.error("Authentication error for request: {}", requestUri, e);
+            handleAuthenticationError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Authentication error", "An error occurred during authentication");
+            return;
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void authenticateUser(String jwt, HttpServletRequest request) {
+        Claims claims = jwtUtil.validateAccessToken(jwt);
+
+        String userId = claims.getSubject();
+        String role = claims.get("role", String.class);
+
+        if (userId == null || role == null) {
+            throw new JwtException("Invalid token claims");
+        }
+
+        UserDetails userDetails = User.builder()
+                .username(userId)
+                .password("")
+                .authorities(Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role)))
+                .build();
+
+        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                userDetails,
+                null,
+                userDetails.getAuthorities()
+        );
+
+        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authToken);
+
+        log.debug("User (ID: {}) authenticated successfully with role: {}", userId, role);
+    }
+
+    private String extractTokenFromCookie(HttpServletRequest request) {
+        if (request.getCookies() == null) {
+            return null;
+        }
+
+        return Arrays.stream(request.getCookies())
+                .filter(cookie -> ACCESS_TOKEN_COOKIE.equals(cookie.getName()))
+                .map(Cookie::getValue)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private boolean isPublicEndpoint(String requestUri) {
+        // Use contains() to handle both with and without context path
+        // e.g., both "/auth/login" and "/api/v1/auth/login" will match
+        return requestUri.contains("/auth/register") ||
+                requestUri.contains("/auth/login") ||
+                requestUri.contains("/auth/refresh") ||
+                requestUri.contains("/actuator/health") ||
+                requestUri.contains("/actuator/info") ||
+                requestUri.contains("/v3/api-docs") ||
+                requestUri.contains("/swagger-ui") ||
+                requestUri.equals("/swagger-ui.html");
+    }
+
+    private void handleAuthenticationError(HttpServletResponse response, int status,
+                                           String error, String message) throws IOException {
+        response.setStatus(status);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write(String.format(
+                "{\"timestamp\":\"%s\",\"status\":%d,\"error\":\"%s\",\"message\":\"%s\"}",
+                java.time.Instant.now().toString(), status, error, message
+        ));
     }
 }

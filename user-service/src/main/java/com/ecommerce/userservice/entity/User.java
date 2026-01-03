@@ -2,47 +2,54 @@ package com.ecommerce.userservice.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
-import lombok.*;
+import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Getter
-@Setter
+@Table(name = "users")
+@Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
-@ToString(exclude = {"password", "roles"})
-@Table(name = "users")
 public class User {
     @Id
-    @GeneratedValue(generator = "UUID")
-    @Column(columnDefinition = "uuid", updatable = false, nullable = false)
-    @EqualsAndHashCode.Include
-    private UUID uuid;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID userId;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true)
+    @NotBlank(message = "Username is required and can't be blank")
     private String username;
 
-    @Column(nullable = false)
-    private String password;
-
     @Email
-    @Column(unique = true, nullable = false)
+    @Column(unique = true)
+    @NotBlank(message = "Email is required")
     private String email;
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "users_roles", joinColumns = @JoinColumn(name = "users_id"))
+    @Column(unique = true)
+    @NotBlank(message = "Password is required and can't be blank")
+    private String passwordHash;
+
+    private String firstName;
+    private String lastName;
+
     @Enumerated(EnumType.STRING)
-    @Builder.Default
-    private Set<Role> roles = new HashSet<>();
+    @Column(nullable = false)
+    private Role role;
 
-    private Boolean enabled;
-    private LocalDateTime createdAt;
+    private boolean enabled = true;
+    private boolean locked = false;
 
+    @CreationTimestamp
+    private Instant createdAt;
 
+    @UpdateTimestamp
+    private Instant updatedAt;
 }

@@ -1,38 +1,87 @@
-server:
-  port: 8081
-
 spring:
   application:
     name: user-service
 
   config:
-    import: "vault://secret/user-service"
+    import: "vault://"
 
-  cloud:
-    vault:
-      uri: http://127.0.0.1:8200
-      authentication: TOKEN
-      token: ${VAULT_TOKEN:hvs.default-token-here}
-      kv:
-        backend: secret
-        default-context: user-service
-      fail-fast: false
-      connection-timeout: 5000
-      read-timeout: 15000
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/user-service
-    username: postgres
-    password: ${db.password}
+    url: ${spring.datasource.url}
+    username: ${spring.datasource.username}
+    password: ${spring.datasource.password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
 
-app:
-  jwt:
-    secret: ${jwt.secret}
-    expiration-ms: ${jwt.expiration-ms}
-    refresh-expiration-ms: ${app.jwt.refresh-expiration-ms}
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1ms
+      password: ${spring.data.redis.password}
+
+  cloud:
+    vault:
+      uri: http://localhost:8200
+      token: root-token
+      enabled: true
+      fail-fast: true
+      kv:
+        enabled: true
+        backend: secret
+        default-context: user-service
+
+server:
+  port: 8081
+  servlet:
+    context-path: /api/v1
+  error:
+    include-message: always
+    include-binding-errors: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+jwt:
+  issuer: user-service
+  access:
+    secret: ${jwt.access.secret}
+    expiration: ${jwt.access.expiration}
+  refresh:
+    secret: ${jwt.refresh.secret}
+    expiration: ${jwt.refresh.expiration}
+
+logging:
+  level:
+    root: INFO
+    com.ecommerce.userservice: DEBUG
+    org.springframework.security: INFO
