@@ -10,6 +10,9 @@ import com.ecommerce.userservice.mapper.UserMapper;
 import com.ecommerce.userservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,6 +71,7 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "user:profile", key = "#userId")
     public UserProfileResponse getUserProfile(UUID userId) {
         log.debug("Fetching user profile for ID: {}", userId);
         User user = getUserById(userId);
@@ -90,6 +94,7 @@ public class UserService {
     }
 
     @Transactional
+    @CachePut(value = "user:profile", key = "#userId")
     public UserProfileResponse updateUserProfile(UUID userId, String firstName, String lastName, String email) {
         log.info("Updating profile for user ID: {}", userId);
 
@@ -117,6 +122,7 @@ public class UserService {
     }
 
     @Transactional
+    @CacheEvict(value = "user:profile", key = "#userId")
     public ChangePasswordResponse changePassword(UUID userId, String currentPassword, String newPassword) {
         log.info("Password change request for user ID: {}", userId);
 
@@ -138,6 +144,7 @@ public class UserService {
     }
 
     @Transactional
+    @CacheEvict(value = "user:profile", key = "#userId")
     public void lockUser(UUID userId, String adminUsername) {
         log.warn("Locking user account: {}", userId);
 
@@ -151,6 +158,7 @@ public class UserService {
     }
 
     @Transactional
+    @CacheEvict(value = "user:profile", key = "#userId")
     public void unlockUser(UUID userId, String adminUsername) {
         log.info("Unlocking user account: {}", userId);
 
@@ -163,6 +171,7 @@ public class UserService {
     }
 
     @Transactional
+    @CacheEvict(value = "user:profile", key = "#userId")
     public void disableUser(UUID userId, String adminUsername) {
         log.warn("Disabling user account: {}", userId);
 
@@ -176,6 +185,7 @@ public class UserService {
     }
 
     @Transactional
+    @CacheEvict(value = "user:profile", key = "#userId")
     public void enableUser(UUID userId, String adminUsername) {
         log.info("Enabling user account: {}", userId);
 
@@ -197,3 +207,4 @@ public class UserService {
         return passwordEncoder.matches(rawPassword, user.getPasswordHash());
     }
 }
+
