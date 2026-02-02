@@ -1,0 +1,7 @@
+package com.ecommerce.userservice.exception;
+
+public class TokenReusedException extends RuntimeException {
+    public TokenReusedException(String message) {
+        super(message);
+    }
+}

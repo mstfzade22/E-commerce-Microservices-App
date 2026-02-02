@@ -1,0 +1,108 @@
+spring:
+  application:
+    name: product-service
+
+  config:
+    import: "vault://,vault://secret/user-service"
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+  datasource:
+    url: ${spring.datasource.url}
+    username: ${spring.datasource.username}
+    password: ${spring.datasource.password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1ms
+      password: ${spring.data.redis.password}
+
+  cloud:
+    vault:
+      uri: http://localhost:8200
+      token: root-token
+      enabled: true
+      fail-fast: true
+      kv:
+        enabled: true
+        backend: secret
+        default-context: product-service
+        application-name: product-service
+      # Import JWT secrets from user-service path (shared secret)
+      generic:
+        enabled: true
+        backend: secret
+        default-context: user-service
+        application-name: user-service
+
+  kafka:
+    bootstrap-servers: ${spring.kafka.bootstrap-servers:localhost:9092}
+    consumer:
+      group-id: product-service-group
+  web:
+    error:
+      include-message: always
+      include-binding-errors: always
+
+server:
+  port: 8082
+  servlet:
+    context-path: /api/v1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+# User-service URL for token validation
+user-service:
+  url: ${USER_SERVICE_URL:http://localhost:8081}
+
+# JWT Configuration - shared secret from Vault (same as user-service)
+jwt:
+  issuer: user-service
+  access:
+    secret: ${jwt.access.secret}
+
+# MinIO Configuration
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${minio.access-key:minioadmin}
+  secret-key: ${minio.secret-key:minioadmin}
+  bucket-name: ${MINIO_BUCKET_NAME:product-images}
+
+logging:
+  level:
+    root: INFO
+    com.ecommerce.productservice: DEBUG
+    org.springframework.security: INFO
