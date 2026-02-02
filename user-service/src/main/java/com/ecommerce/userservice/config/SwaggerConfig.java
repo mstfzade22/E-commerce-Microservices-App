@@ -45,7 +45,6 @@ public class SwaggerConfig {
                 .url("http://localhost:" + serverPort + "/api/v1")
                 .description("Local Development Server");
 
-
         return List.of(localServer);
     }
 

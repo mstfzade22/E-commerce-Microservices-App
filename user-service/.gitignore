@@ -38,3 +38,6 @@ out/
 
 # Local run scripts
 run.txt
+
+# Documentation
+docs/

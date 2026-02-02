@@ -198,7 +198,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public boolean isUserActiveAndUnlocked(UUID userId) {
-        return userRepository.isUserActiveAndUnlocked(userId);
+        return userRepository.existsByUserIdAndEnabledTrueAndLockedFalse(userId);
     }
 
     @Transactional(readOnly = true)

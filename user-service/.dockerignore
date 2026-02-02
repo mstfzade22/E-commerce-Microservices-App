@@ -27,7 +27,6 @@ docs/
 
 # Docker
 Dockerfile
-docker-compose.yml
 .dockerignore
 
 # Logs

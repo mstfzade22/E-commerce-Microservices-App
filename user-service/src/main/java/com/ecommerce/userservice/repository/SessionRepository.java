@@ -17,15 +17,13 @@ import java.util.UUID;
 public interface SessionRepository extends JpaRepository<Session, Long> {
     Optional<Session> findBySessionId(String sessionId);
     List<Session> findByUserIdAndIsActiveTrue(UUID userId);
-    void deleteBySessionId(String sessionId);
 
     @Transactional
     @Modifying
-    @Query("DELETE FROM Session s WHERE s.expiresAt < :threshold")
-    int deleteExpiredSessions(@Param("threshold") Instant threshold);
+    int deleteByExpiresAtBefore(Instant threshold);
 
     @Transactional
     @Modifying
     @Query("UPDATE Session s SET s.isActive = false, s.revokedAt = :revokedAt WHERE s.userId = :userId AND s.isActive = true")
-    int revokeAllUserSessions(@Param("userId") UUID userId, @Param("revokedAt") Instant revokedAt);
+    void revokeAllUserSessions(@Param("userId") UUID userId, @Param("revokedAt") Instant revokedAt);
 }

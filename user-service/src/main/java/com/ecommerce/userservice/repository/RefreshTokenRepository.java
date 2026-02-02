@@ -22,49 +22,12 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
 
     List<RefreshToken> findAllBySessionId(String sessionId);
 
-    @Query("""
-        SELECT rt FROM RefreshToken rt 
-        WHERE rt.tokenHash = :tokenHash 
-          AND rt.userId = :userId 
-          AND rt.revokedAt IS NULL 
-          AND rt.expiresAt > :now
-    """)
-    Optional<RefreshToken> findActiveByTokenHashAndUser(
-            @Param("tokenHash") String tokenHash,
-            @Param("userId") UUID userId,
-            @Param("now") Instant now
-    );
-
-    @Query("""
-        SELECT rt FROM RefreshToken rt
-        WHERE rt.userId = :userId
-          AND rt.revokedAt IS NULL
-          AND rt.expiresAt > :now
-        ORDER BY rt.createdAt ASC
-    """)
-    List<RefreshToken> findActiveTokensByUser(
-            @Param("userId") UUID userId,
-            @Param("now") Instant now
-    );
-
     @Transactional
     @Modifying
     @Query("""
         UPDATE RefreshToken rt
-        SET rt.revokedAt = :revokedAt
-        WHERE rt.expiresAt < :now
-          AND rt.revokedAt IS NULL
-    """)
-    int revokeExpiredTokens(
-            @Param("now") Instant now,
-            @Param("revokedAt") Instant revokedAt
-    );
-
-    @Transactional
-    @Modifying
-    @Query("""
-        UPDATE RefreshToken rt
-        SET rt.revokedAt = :revokedAt
+        SET rt.revokedAt = :revokedAt,
+            rt.revoked = true
         WHERE rt.userId = :userId
           AND rt.revokedAt IS NULL
     """)
@@ -75,16 +38,11 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
 
     @Transactional
     @Modifying
-    @Query("DELETE FROM RefreshToken rt WHERE rt.expiresAt < :threshold")
-    int deleteExpiredTokens(@Param("threshold") Instant threshold);
+    int deleteByExpiresAtBefore(Instant threshold);
 
-    boolean existsByJti(String jti);
-
-    long countByUserIdAndRevokedAtIsNullAndExpiresAtAfter(UUID userId, Instant now);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT rt FROM RefreshToken rt WHERE rt.jti = :jti")
     Optional<RefreshToken> findByJtiWithLock(@Param("jti") String jti);
 
-    void deleteBySessionId(String sessionId);
 }

@@ -17,9 +17,8 @@ import com.ecommerce.userservice.repository.RefreshTokenRepository;
 import com.ecommerce.userservice.repository.SessionRepository;
 import com.ecommerce.userservice.repository.UserRepository;
 import io.jsonwebtoken.Claims;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -48,13 +47,6 @@ public class AuthService {
     public RegistrationResponse register(RegistrationRequest request) {
         log.info("Registration request received for username: {}", request.getUsername());
 
-        if (request.getUsername() == null || request.getUsername().isBlank())
-            throw new IllegalArgumentException("username required");
-        if (request.getEmail() == null || request.getEmail().isBlank())
-            throw new IllegalArgumentException("email required");
-        if (request.getPassword() == null || request.getPassword().length() < 8)
-            throw new IllegalArgumentException("password must be at least 8 characters");
-
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new DuplicateUserException("Email already in use");
         }
@@ -74,7 +66,7 @@ public class AuthService {
     }
 
     @Transactional
-    public LoginResponse login(LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
+    public AuthResult<LoginResponse> login(LoginRequest request, String ipAddress, String deviceInfo) {
         log.info("Login request received for username: {}", request.getUsername());
 
         Optional<User> maybeUser = userRepository.findByUsername(request.getUsername());
@@ -91,9 +83,7 @@ public class AuthService {
         }
 
         String role = user.getRole().name();
-        TokenPair tokens = createSessionForUser(user.getUserId(), role, httpRequest);
-
-        setAuthCookies(httpResponse, tokens);
+        TokenPair tokens = createSessionForUser(user.getUserId(), role, ipAddress, deviceInfo);
 
         log.info("User {} logged in successfully (username: {})", user.getUserId(), request.getUsername());
 
@@ -103,11 +93,11 @@ public class AuthService {
         response.setLoginAt(Instant.now());
         response.setAccessExpiresIn(jwtUtil.getAccessTokenExpiration());
 
-        return response;
+        return new AuthResult<>(response, tokens);
     }
 
     @Transactional
-    public TokenPair createSessionForUser(UUID userId, String role, HttpServletRequest request) {
+    public TokenPair createSessionForUser(UUID userId, String role, String ipAddress, String deviceInfo) {
         String sessionId = "session_" + UUID.randomUUID();
 
         JwtUtil.TokenData accessData = jwtUtil.generateAccessToken(userId, sessionId, role);
@@ -123,8 +113,8 @@ public class AuthService {
                 .sessionId(sessionId)
                 .userId(userId)
                 .currentRefreshJti(refreshData.jti())
-                .deviceInfo(request == null ? null : request.getHeader("User-Agent"))
-                .ipAddress(request == null ? null : getClientIp(request))
+                .deviceInfo(deviceInfo)
+                .ipAddress(ipAddress)
                 .createdAt(now)
                 .lastActivityAt(now)
                 .expiresAt(refreshExpiry)
@@ -150,13 +140,10 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(HttpServletRequest request, HttpServletResponse response) {
+    public void logout(String refreshToken) {
         try {
-            String refreshToken = extractTokenFromCookie(request, "refresh_token");
-
             if (refreshToken == null) {
                 log.warn("Logout called without refresh token");
-                clearAuthCookies(response);
                 return;
             }
 
@@ -182,15 +169,11 @@ public class AuthService {
 
         } catch (Exception e) {
             log.error("Error during logout", e);
-        } finally {
-            clearAuthCookies(response);
         }
     }
 
     @Transactional
-    public TokenRefreshResponse refresh(HttpServletRequest request, HttpServletResponse response) {
-        String oldRefreshToken = extractTokenFromCookie(request, "refresh_token");
-
+    public AuthResult<TokenRefreshResponse> refresh(String oldRefreshToken, String ipAddress, String deviceInfo) {
         if (oldRefreshToken == null) {
             throw new InvalidTokenException("Refresh token not found");
         }
@@ -224,6 +207,11 @@ public class AuthService {
             throw new AuthenticationException("Invalid refresh token");
         }
 
+        if (storedToken.getRevokedAt() != null || storedToken.isRevoked()) {
+            log.warn("Refresh attempt with revoked token. JTI: {}", providedRefreshJti);
+            throw new InvalidTokenException("Refesh token revoked");
+        }
+
         if (storedToken.getUsedAt() != null) {
             log.error("TOKEN REUSE DETECTED! Session: {}, User: {}, JTI: {}",
                     sessionId, userId, providedRefreshJti);
@@ -237,7 +225,6 @@ public class AuthService {
             throw new InvalidTokenException("Session mismatch");
         }
 
-        // Fetch user's role from database
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AuthenticationException("User not found"));
         String role = user.getRole().name();
@@ -275,16 +262,16 @@ public class AuthService {
             sessionRepository.save(session);
         });
 
-        setAuthCookies(response, new TokenPair(newAccessData.token(), newRefreshData.token(), sessionId));
-
         log.info("Token refresh successful for user {} in session {}", userId, sessionId);
 
-        return TokenRefreshResponse.builder()
+        TokenRefreshResponse response = TokenRefreshResponse.builder()
                 .message("Tokens refreshed successfully")
                 .sessionId(sessionId)
                 .refreshedAt(Instant.now())
                 .expiresIn(jwtUtil.getAccessTokenExpiration())
                 .build();
+
+        return new AuthResult<>(response, new TokenPair(newAccessData.token(), newRefreshData.token(), sessionId));
     }
 
     private void handleTokenReuse(String sessionId, UUID userId) {
@@ -310,58 +297,6 @@ public class AuthService {
         }
     }
 
-    private String extractTokenFromCookie(HttpServletRequest request, String cookieName) {
-        if (request.getCookies() == null) return null;
-
-        for (Cookie cookie : request.getCookies()) {
-            if (cookieName.equals(cookie.getName())) {
-                return cookie.getValue();
-            }
-        }
-        return null;
-    }
-
-    private void clearAuthCookies(HttpServletResponse response) {
-        Cookie accessCookie = new Cookie("access_token", "");
-        accessCookie.setMaxAge(0);
-        accessCookie.setHttpOnly(true);
-        accessCookie.setSecure(true);
-        accessCookie.setPath("/");
-        response.addCookie(accessCookie);
-
-        Cookie refreshCookie = new Cookie("refresh_token", "");
-        refreshCookie.setMaxAge(0);
-        refreshCookie.setHttpOnly(true);
-        refreshCookie.setSecure(true);
-        refreshCookie.setPath("/");
-        response.addCookie(refreshCookie);
-    }
-
-    private void setAuthCookies(HttpServletResponse response, TokenPair tokens) {
-        Cookie accessCookie = new Cookie("access_token", tokens.accessToken);
-        accessCookie.setHttpOnly(true);
-        accessCookie.setSecure(true); // HTTPS - production-da true ele
-        accessCookie.setPath("/");
-        accessCookie.setMaxAge((int) (jwtUtil.getAccessTokenExpirationMs() / 1000));
-        response.addCookie(accessCookie);
-
-        Cookie refreshCookie = new Cookie("refresh_token", tokens.refreshToken);
-        refreshCookie.setHttpOnly(true);
-        refreshCookie.setSecure(true); // HTTPS - production-da true ele
-        refreshCookie.setPath("/");
-        refreshCookie.setMaxAge((int) (jwtUtil.getRefreshTokenExpirationMs() / 1000));
-        response.addCookie(refreshCookie);
-    }
-
-    private String getClientIp(HttpServletRequest request) {
-        if (request == null) return null;
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty()) {
-            ip = request.getRemoteAddr();
-        }
-        return ip;
-    }
-
     private String hashToken(String token) {
         return passwordEncoder.encode(token);
     }
@@ -377,4 +312,12 @@ public class AuthService {
             this.sessionId = sessionId;
         }
     }
+
+    @Getter
+    @AllArgsConstructor
+    public static class AuthResult<T> {
+        private final T response;
+        private final TokenPair tokens;
+    }
 }
+

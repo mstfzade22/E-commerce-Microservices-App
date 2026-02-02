@@ -40,7 +40,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain) throws ServletException, IOException {
 
-        // Skip authentication for public endpoints
         String requestUri = request.getRequestURI();
         if (isPublicEndpoint(requestUri)) {
             filterChain.doFilter(request, response);
@@ -114,8 +113,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private boolean isPublicEndpoint(String requestUri) {
-        // Use contains() to handle both with and without context path
-        // e.g., both "/auth/login" and "/api/v1/auth/login" will match
         return requestUri.contains("/auth/register") ||
                 requestUri.contains("/auth/login") ||
                 requestUri.contains("/auth/refresh") ||

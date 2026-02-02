@@ -54,14 +54,11 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                // Auth endpoints (public)
                                 "/auth/register",
                                 "/auth/login",
                                 "/auth/refresh",
-                                // Actuator endpoints
                                 "/actuator/health",
                                 "/actuator/info",
-                                // Swagger/OpenAPI endpoints
                                 "/v3/api-docs/**",
                                 "/v3/api-docs.yaml",
                                 "/swagger-ui/**",
@@ -70,13 +67,11 @@ public class SecurityConfig {
                                 "/webjars/**"
                         ).permitAll()
 
-                        // Admin-only endpoints
                         .requestMatchers("/users/*/lock").hasRole("ADMIN")
                         .requestMatchers("/users/*/unlock").hasRole("ADMIN")
                         .requestMatchers("/users/*/disable").hasRole("ADMIN")
                         .requestMatchers("/users/*/enable").hasRole("ADMIN")
 
-                        // Authenticated endpoints
                         .requestMatchers("/auth/logout").authenticated()
                         .requestMatchers("/auth/validate").authenticated()
                         .requestMatchers("/users/**").authenticated()

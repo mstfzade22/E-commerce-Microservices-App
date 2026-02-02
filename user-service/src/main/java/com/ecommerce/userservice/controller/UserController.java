@@ -36,7 +36,6 @@ public class UserController {
     public ResponseEntity<UserProfileResponse> getCurrentUser(
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        // userDetails.getUsername() contains the userId (UUID) from JWT token
         UUID userId = UUID.fromString(userDetails.getUsername());
         log.debug("Fetching profile for user ID: {}", userId);
         UserProfileResponse profile = userService.getUserProfile(userId);
@@ -58,7 +57,6 @@ public class UserController {
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestBody Map<String, String> updates) {
 
-        // userDetails.getUsername() contains the userId (UUID) from JWT token
         UUID userId = UUID.fromString(userDetails.getUsername());
         log.info("Updating profile for user ID: {}", userId);
 
@@ -77,7 +75,6 @@ public class UserController {
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody ChangePasswordRequest request)
     {
-        // userDetails.getUsername() contains the userId (UUID) from JWT token
         UUID userId = UUID.fromString(userDetails.getUsername());
         log.info("Password change request for user ID: {}", userId);
 
@@ -157,6 +154,4 @@ public class UserController {
                 "timestamp", java.time.Instant.now().toString()
         ));
     }
-
-
 }
