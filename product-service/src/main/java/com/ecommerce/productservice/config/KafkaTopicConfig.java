@@ -3,7 +3,6 @@ package com.ecommerce.productservice.config;
 public final class KafkaTopicConfig {
 
     private KafkaTopicConfig() {
-
     }
 
     public static final String PRODUCT_EVENTS_TOPIC = "product-events";

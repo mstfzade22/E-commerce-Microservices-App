@@ -107,8 +107,6 @@ public class RedisConfig {
 
         cacheConfigurations.put(CacheNames.PRODUCT_BY_ID, defaultConfig.entryTtl(Duration.ofHours(1)));
         cacheConfigurations.put(CacheNames.PRODUCT_BY_SLUG, defaultConfig.entryTtl(Duration.ofHours(1)));
-        cacheConfigurations.put(CacheNames.PRODUCTS_FEATURED, defaultConfig.entryTtl(Duration.ofMinutes(30)));
-        cacheConfigurations.put(CacheNames.PRODUCTS_BY_CATEGORY, defaultConfig.entryTtl(Duration.ofMinutes(15)));
 
         cacheConfigurations.put(CacheNames.CATEGORY_BY_ID, defaultConfig.entryTtl(Duration.ofHours(6)));
         cacheConfigurations.put(CacheNames.CATEGORY_BY_SLUG, defaultConfig.entryTtl(Duration.ofHours(6)));
@@ -125,8 +123,7 @@ public class RedisConfig {
     public static final class CacheNames {
         public static final String PRODUCT_BY_ID = "product:id";
         public static final String PRODUCT_BY_SLUG = "product:slug";
-        public static final String PRODUCTS_FEATURED = "products:featured";
-        public static final String PRODUCTS_BY_CATEGORY = "products:category";
+
         public static final String CATEGORY_BY_ID = "category:id";
         public static final String CATEGORY_BY_SLUG = "category:slug";
         public static final String CATEGORY_TREE = "category:tree";
