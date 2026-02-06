@@ -26,6 +26,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -36,6 +37,7 @@ public class ProductService {
     private final ProductMapper productMapper;
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final KafkaProducerService kafkaProducerService;
 
     @Transactional
     public ProductCreateResponse createProduct(CreateProductRequest request) {
@@ -60,6 +62,8 @@ public class ProductService {
         Product savedProduct = productRepository.save(product);
         log.info("Product created successfully with id: {}", savedProduct.getId());
 
+        kafkaProducerService.publishProductCreatedEvent(savedProduct);
+
         return productMapper.toCreateResponse(savedProduct);
     }
 
@@ -71,6 +75,9 @@ public class ProductService {
 
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
+
+        BigDecimal oldPrice = product.getPrice();
+        BigDecimal oldDiscountPrice = product.getDiscountPrice();
 
         if (request.getSlug() != null && !request.getSlug().equals(product.getSlug())) {
             if (productRepository.existsBySlugAndIdNot(request.getSlug(), id)) {
@@ -98,6 +105,15 @@ public class ProductService {
         Product updatedProduct = productRepository.save(product);
         log.info("Product updated successfully with ID: {}", updatedProduct.getId());
 
+        kafkaProducerService.publishProductUpdatedEvent(updatedProduct);
+
+        boolean priceChanged = (request.getPrice() != null && !request.getPrice().equals(oldPrice)) ||
+                (request.getDiscountPrice() != null && !request.getDiscountPrice().equals(oldDiscountPrice));
+
+        if (priceChanged) {
+            kafkaProducerService.publishPriceChangedEvent(updatedProduct, oldPrice, oldDiscountPrice);
+        }
+
         return productMapper.toDetailResponse(updatedProduct);
     }
 
@@ -109,10 +125,15 @@ public class ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
 
+        String slug = product.getSlug();
+        String sku = product.getSku();
+
         product.setIsActive(false);
         productRepository.save(product);
 
         log.info("Product soft-deleted successfully with ID: {}", id);
+
+        kafkaProducerService.publishProductDeletedEvent(id, slug, sku);
     }
 
     @Transactional(readOnly = true)
@@ -212,3 +233,7 @@ public class ProductService {
     }
 
 }
+
+
+
+
