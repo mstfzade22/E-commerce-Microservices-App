@@ -23,18 +23,18 @@ public class JwtUtil {
     private final SecretKey refreshTokenKey;
 
     @Getter
-    @Value("${jwt.access.expiration}")
-    private long accessTokenExpiration;
+    private final long accessTokenExpiration;
 
     @Getter
-    @Value("${jwt.refresh.expiration}")
-    private long refreshTokenExpiration;
+    private final long refreshTokenExpiration;
 
-    @Value("${jwt.issuer:user-service}")
-    private String issuer;
+    private final String issuer;
 
     public JwtUtil(@Value("${jwt.access.secret}") String accessSecret,
-                   @Value("${jwt.refresh.secret}") String refreshSecret) {
+                   @Value("${jwt.refresh.secret}") String refreshSecret,
+                   @Value("${jwt.access.expiration}") long accessTokenExpiration,
+                   @Value("${jwt.refresh.expiration}") long refreshTokenExpiration,
+                   @Value("${jwt.issuer:user-service}") String issuer) {
 
         if (accessSecret == null || accessSecret.length() < 32) {
             throw new IllegalArgumentException("Access token secret must be at least 32 characters (256 bits)");
@@ -45,6 +45,9 @@ public class JwtUtil {
 
         this.accessTokenKey = Keys.hmacShaKeyFor(accessSecret.getBytes(StandardCharsets.UTF_8));
         this.refreshTokenKey = Keys.hmacShaKeyFor(refreshSecret.getBytes(StandardCharsets.UTF_8));
+        this.accessTokenExpiration = accessTokenExpiration;
+        this.refreshTokenExpiration = refreshTokenExpiration;
+        this.issuer = issuer;
 
         log.info("JWT Service initialized with issuer: {}", issuer);
         log.debug("Access token expiration: {} seconds", accessTokenExpiration);
