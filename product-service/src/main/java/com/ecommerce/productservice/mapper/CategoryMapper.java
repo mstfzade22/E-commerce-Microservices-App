@@ -11,8 +11,11 @@ import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
+import org.mapstruct.Named;
 import org.mapstruct.NullValuePropertyMappingStrategy;
+import org.hibernate.Hibernate;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Mapper(componentModel = "spring")
@@ -26,11 +29,14 @@ public interface CategoryMapper {
     Category toEntity(CreateCategoryRequest request);
 
     @Mapping(target = "productCount", ignore = true)
+    @Mapping(target = "parent", source = "parent", qualifiedByName = "toParentSummary")
+    @Mapping(target = "children", source = "children", qualifiedByName = "toChildrenSummary")
     CategoryDetailResponse toDetailResponse(Category category);
 
     CategorySummaryResponse toSummaryResponse(Category category);
 
     @Mapping(target = "productCount", ignore = true)
+    @Mapping(target = "children", source = "children", qualifiedByName = "toChildrenTree")
     CategoryTreeResponse toTreeResponse(Category category);
 
     @Mapping(target = "message", constant = "Category created successfully")
@@ -47,5 +53,29 @@ public interface CategoryMapper {
     List<CategorySummaryResponse> toSummaryResponseList(List<Category> categories);
 
     List<CategoryTreeResponse> toTreeResponseList(List<Category> categories);
+
+    @Named("toParentSummary")
+    default CategorySummaryResponse toParentSummary(Category parent) {
+        if (parent == null || !Hibernate.isInitialized(parent)) {
+            return null;
+        }
+        return toSummaryResponse(parent);
+    }
+
+    @Named("toChildrenSummary")
+    default List<CategorySummaryResponse> toChildrenSummary(List<Category> children) {
+        if (children == null || !Hibernate.isInitialized(children)) {
+            return new ArrayList<>();
+        }
+        return toSummaryResponseList(children);
+    }
+
+    @Named("toChildrenTree")
+    default List<CategoryTreeResponse> toChildrenTree(List<Category> children) {
+        if (children == null || !Hibernate.isInitialized(children)) {
+            return new ArrayList<>();
+        }
+        return toTreeResponseList(children);
+    }
 
 }

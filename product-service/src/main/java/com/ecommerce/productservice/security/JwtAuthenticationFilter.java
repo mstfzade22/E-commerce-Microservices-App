@@ -42,16 +42,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @Nonnull FilterChain filterChain) throws ServletException, IOException {
 
         String requestUri = request.getRequestURI();
-        if (isPublicEndpoint(requestUri)) {
+        String method = request.getMethod();
+
+        log.debug("Processing request: {} {}", method, requestUri);
+
+        if (isSwaggerOrActuatorEndpoint(requestUri)) {
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
             String jwt = extractToken(request);
+            log.debug("Extracted JWT: {}", jwt != null ? "present" : "null");
 
             if (jwt != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 authenticateUser(jwt, request);
+            } else if (jwt == null) {
+                log.debug("No JWT token found in request");
             }
         } catch (ExpiredJwtException e) {
             log.debug("JWT token expired for request: {} - {}", requestUri, e.getMessage());
@@ -79,14 +86,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String userId = claims.getSubject();
         String role = claims.get("role", String.class);
 
+        log.info("JWT Claims - userId: {}, role: '{}'", userId, role);
+
         if (userId == null || role == null) {
             throw new JwtException("Invalid token claims");
         }
 
+        String normalizedRole = role.toUpperCase();
+        String authority = normalizedRole.startsWith("ROLE_") ? normalizedRole : "ROLE_" + normalizedRole;
+
+        log.info("Setting authority: {}", authority);
+
         UserDetails userDetails = User.builder()
                 .username(userId)
                 .password("")
-                .authorities(Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role)))
+                .authorities(Collections.singletonList(new SimpleGrantedAuthority(authority)))
                 .build();
 
         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
@@ -98,7 +112,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
         SecurityContextHolder.getContext().setAuthentication(authToken);
 
-        log.debug("User (ID: {}) authenticated successfully with role: {}", userId, role);
+        log.info("User (ID: {}) authenticated successfully with authority: {}", userId, authority);
     }
 
 
@@ -123,21 +137,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 .orElse(null);
     }
 
-    private boolean isPublicEndpoint(String requestUri) {
+    private boolean isSwaggerOrActuatorEndpoint(String requestUri) {
         return requestUri.contains("/actuator/health") ||
                 requestUri.contains("/actuator/info") ||
                 requestUri.contains("/v3/api-docs") ||
                 requestUri.contains("/swagger-ui") ||
-                requestUri.equals("/swagger-ui.html") ||
-
-                (requestUri.matches(".*/products/?$") && isGetRequest()) ||
-                (requestUri.matches(".*/products/[^/]+$") && isGetRequest()) ||
-                (requestUri.matches(".*/categories/?$") && isGetRequest()) ||
-                (requestUri.matches(".*/categories/[^/]+$") && isGetRequest());
-    }
-
-    private boolean isGetRequest() {
-        return true;
+                requestUri.equals("/swagger-ui.html");
     }
 
     private void handleAuthenticationError(HttpServletResponse response, int status,

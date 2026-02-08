@@ -1,10 +1,8 @@
 package com.ecommerce.productservice.dto.request;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record ProductImageRequest(
-        @NotBlank(message = "Image URL is required")
         String imageUrl,
 
         @Size(max = 255, message = "Alt text cannot exceed 255 characters")

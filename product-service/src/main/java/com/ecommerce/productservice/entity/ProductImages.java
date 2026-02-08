@@ -1,10 +1,13 @@
 package com.ecommerce.productservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+import lombok.EqualsAndHashCode;
 
 @Entity
 @Table(name = "product_images")
@@ -12,6 +15,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"product"})
+@EqualsAndHashCode(exclude = {"product"})
 public class ProductImages {
 
     @Id
@@ -20,6 +25,7 @@ public class ProductImages {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
+    @JsonBackReference
     private Product product;
 
     private String imageUrl;

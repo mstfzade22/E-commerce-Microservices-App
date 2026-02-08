@@ -17,7 +17,6 @@ import com.ecommerce.productservice.repositories.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
@@ -35,7 +34,6 @@ public class CategoryService {
     private final ProductRepository productRepository;
 
     @Transactional
-    @CacheEvict(value = RedisConfig.CacheNames.CATEGORY_TREE, allEntries = true)
     public CategoryCreateResponse createCategory(CreateCategoryRequest request) {
         log.info("Creating category with slug: {}", request.slug());
 
@@ -58,11 +56,6 @@ public class CategoryService {
     }
 
     @Transactional
-    @Caching(evict = {
-            @CacheEvict(value = RedisConfig.CacheNames.CATEGORY_BY_SLUG, allEntries = true),
-            @CacheEvict(value = RedisConfig.CacheNames.CATEGORY_TREE, allEntries = true)
-    })
-    @CachePut(value = RedisConfig.CacheNames.CATEGORY_BY_ID, key = "#id")
     public CategoryDetailResponse updateCategory(Long id, UpdateCategoryRequest request) {
         log.info("Updating category with ID: {}", id);
 
@@ -119,11 +112,10 @@ public class CategoryService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = RedisConfig.CacheNames.CATEGORY_BY_ID, key = "#id")
     public CategoryDetailResponse getCategoryById(Long id) {
         log.info("Fetching category with ID: {}", id);
 
-        Category category = categoryRepository.findById(id)
+        Category category = categoryRepository.findByIdWithParentAndChildren(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category", id));
 
         return categoryMapper.toDetailResponse(category);
@@ -134,7 +126,7 @@ public class CategoryService {
     public CategoryDetailResponse getCategoryBySlug(String slug) {
         log.info("Fetching category with slug: {}", slug);
 
-        Category category = categoryRepository.findBySlug(slug)
+        Category category = categoryRepository.findBySlugWithParentAndChildren(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "slug", slug));
 
         return categoryMapper.toDetailResponse(category);

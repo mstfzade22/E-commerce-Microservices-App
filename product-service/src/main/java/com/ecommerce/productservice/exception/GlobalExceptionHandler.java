@@ -95,7 +95,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
             Exception ex, HttpServletRequest request) {
-        log.info("Unexpected error: {} - Path: {}", ex.getMessage(), request.getRequestURI());
+        log.error("Unexpected error - Path: {}", request.getRequestURI(), ex);
 
         ErrorResponse error = ErrorResponse.of(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),

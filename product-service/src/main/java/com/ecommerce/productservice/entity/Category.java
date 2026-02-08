@@ -1,10 +1,14 @@
 package com.ecommerce.productservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+import lombok.EqualsAndHashCode;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -18,6 +22,8 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"parent", "children"})
+@EqualsAndHashCode(exclude = {"parent", "children"})
 public class Category {
 
     @Id
@@ -31,9 +37,12 @@ public class Category {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
+    @JsonBackReference
     private Category parent;
 
-    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonManagedReference
+    @Builder.Default
     private List<Category> children = new ArrayList<>();
 
     @org.hibernate.annotations.CreationTimestamp

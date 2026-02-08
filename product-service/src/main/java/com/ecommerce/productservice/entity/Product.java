@@ -1,10 +1,14 @@
 package com.ecommerce.productservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+import lombok.EqualsAndHashCode;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -22,6 +26,8 @@ import java.util.Map;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"category", "images"})
+@EqualsAndHashCode(exclude = {"category", "images"})
 public class Product {
 
     @Id
@@ -30,6 +36,7 @@ public class Product {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "children", "parent"})
     private Category category;
 
     @Column(nullable = false)
@@ -70,5 +77,7 @@ public class Product {
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC")
+    @JsonManagedReference
+    @Builder.Default
     private List<ProductImages> images = new ArrayList<>();
 }
