@@ -47,7 +47,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         try {
-            String jwt = extractTokenFromCookie(request);
+            String jwt = extractToken(request);
 
             if (jwt != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 authenticateUser(jwt, request);
@@ -98,6 +98,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         SecurityContextHolder.getContext().setAuthentication(authToken);
 
         log.debug("User (ID: {}) authenticated successfully with role: {}", userId, role);
+    }
+
+    private String extractToken(HttpServletRequest request) {
+        // First try Authorization header (for Swagger/API clients)
+        String bearerToken = extractTokenFromHeader(request);
+        if (bearerToken != null) {
+            return bearerToken;
+        }
+        // Fall back to cookie (for browser clients)
+        return extractTokenFromCookie(request);
+    }
+
+    private String extractTokenFromHeader(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        return null;
     }
 
     private String extractTokenFromCookie(HttpServletRequest request) {

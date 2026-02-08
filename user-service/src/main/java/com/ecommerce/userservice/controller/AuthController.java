@@ -17,6 +17,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -33,6 +34,9 @@ public class AuthController {
 
     private final AuthService authService;
     private final JwtUtil jwtUtil;
+
+    @Value("${server.ssl.enabled:false}")
+    private boolean secureCookies;
 
     @PostMapping("/register")
     @Operation(summary = "Register a new user", description = "Creates a new user account with the provided details")
@@ -135,14 +139,14 @@ public class AuthController {
     private void setAuthCookies(HttpServletResponse response, TokenPair tokens) {
         Cookie accessCookie = new Cookie("access_token", tokens.accessToken);
         accessCookie.setHttpOnly(true);
-        accessCookie.setSecure(true);
+        accessCookie.setSecure(secureCookies);
         accessCookie.setPath("/");
         accessCookie.setMaxAge((int) jwtUtil.getAccessTokenExpiration());
         response.addCookie(accessCookie);
 
         Cookie refreshCookie = new Cookie("refresh_token", tokens.refreshToken);
         refreshCookie.setHttpOnly(true);
-        refreshCookie.setSecure(true);
+        refreshCookie.setSecure(secureCookies);
         refreshCookie.setPath("/");
         refreshCookie.setMaxAge((int) jwtUtil.getRefreshTokenExpiration());
         response.addCookie(refreshCookie);
@@ -152,14 +156,14 @@ public class AuthController {
         Cookie accessCookie = new Cookie("access_token", "");
         accessCookie.setMaxAge(0);
         accessCookie.setHttpOnly(true);
-        accessCookie.setSecure(true);
+        accessCookie.setSecure(secureCookies);
         accessCookie.setPath("/");
         response.addCookie(accessCookie);
 
         Cookie refreshCookie = new Cookie("refresh_token", "");
         refreshCookie.setMaxAge(0);
         refreshCookie.setHttpOnly(true);
-        refreshCookie.setSecure(true);
+        refreshCookie.setSecure(secureCookies);
         refreshCookie.setPath("/");
         response.addCookie(refreshCookie);
     }

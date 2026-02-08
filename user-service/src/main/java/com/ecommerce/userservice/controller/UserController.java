@@ -43,7 +43,7 @@ public class UserController {
     }
 
     @GetMapping("/{userId}")
-    @PreAuthorize("hasRole('ADMIN') or #userId.toString() == authentication.principal.username")
+    @PreAuthorize("hasAuthority('ADMIN') or #userId.toString() == authentication.principal.username")
     @Operation(summary = "Get user by ID", description = "Returns user profile by ID (Admin or self only)")
     public ResponseEntity<UserProfileResponse> getUserById(@PathVariable UUID userId) {
         log.debug("Fetching user profile by ID: {}", userId);
@@ -88,7 +88,7 @@ public class UserController {
     }
 
     @PostMapping("/{userId}/lock")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Lock user account", description = "Locks a user account and revokes all sessions (Admin only)")
     public ResponseEntity<Map<String, String>> lockUser(
             @PathVariable UUID userId,
@@ -105,7 +105,7 @@ public class UserController {
     }
 
     @PostMapping("/{userId}/unlock")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Unlock user account", description = "Unlocks a previously locked user account (Admin only)")
     public ResponseEntity<Map<String, String>> unlockUser(
             @PathVariable UUID userId,
@@ -122,7 +122,7 @@ public class UserController {
     }
 
     @PostMapping("/{userId}/disable")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Disable user account", description = "Disables a user account and revokes all sessions (Admin only)")
     public ResponseEntity<Map<String, String>> disableUser(
             @PathVariable UUID userId,
@@ -139,7 +139,7 @@ public class UserController {
     }
 
     @PostMapping("/{userId}/enable")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Enable user account", description = "Enables a previously disabled user account (Admin only)")
     public ResponseEntity<Map<String, String>> enableUser(
             @PathVariable UUID userId,
