@@ -1,4 +1,4 @@
-package com.ecommerce.productservice.config;
+package com.ecommerce.inventoryservice.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -15,17 +15,17 @@ import java.util.List;
 @Configuration
 public class SwaggerConfig {
 
-    @Value("${server.port:8082}")
+    @Value("${server.port:8083}")
     private String serverPort;
 
     @Bean
-    public OpenAPI productServiceOpenAPI() {
+    public OpenAPI inventoryServiceOpenAPI() {
         final String securitySchemeName = "bearerAuth";
 
         return new OpenAPI()
                 .info(new Info()
-                        .title("Product Service API")
-                        .description("REST API for managing products, categories, and images in the E-commerce platform")
+                        .title("Inventory Service API")
+                        .description("REST API for managing inventory, stock levels, and reservations in the E-commerce platform")
                         .version("1.0"))
                 .servers(List.of(
                         new Server()
@@ -41,5 +41,4 @@ public class SwaggerConfig {
                                         .bearerFormat("JWT")
                                         .description("Enter JWT token obtained from user-service /auth/login endpoint")));
     }
-
 }

@@ -1,9 +1,7 @@
-package com.ecommerce.productservice.config;
+package com.ecommerce.inventoryservice.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -18,49 +16,41 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
-@Slf4j
 public class KafkaProducerConfig {
 
-    @Value("${spring.kafka.bootstrap-servers}")
+    @Value("${spring.kafka.bootstrap-servers:localhost:29092}")
     private String bootstrapServers;
 
     @Bean
     public ObjectMapper kafkaObjectMapper() {
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-        return objectMapper;
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        return mapper;
     }
 
     @Bean
-    public Serializer<Object> jsonSerializer(ObjectMapper kafkaObjectMapper) {
+    public Serializer<Object> customJsonSerializer(ObjectMapper kafkaObjectMapper) {
         return (topic, data) -> {
+            if (data == null) return null;
             try {
                 return kafkaObjectMapper.writeValueAsBytes(data);
             } catch (JsonProcessingException e) {
-                throw new RuntimeException("Error serializing message", e);
+                throw new RuntimeException("Error serializing Kafka message", e);
             }
         };
     }
 
     @Bean
-    public ProducerFactory<String, Object> producerFactory(Serializer<Object> jsonSerializer) {
-        Map<String, Object> configProps = new HashMap<>();
-        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-
-        configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-        configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-        configProps.put(ProducerConfig.RETRY_BACKOFF_MS_CONFIG, 1000);
-
-        configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-
-        log.info("Kafka producer configured with bootstrap servers: {}", bootstrapServers);
-
-        return new DefaultKafkaProducerFactory<>(configProps, new StringSerializer(), jsonSerializer);
+    public ProducerFactory<String, Object> producerFactory(Serializer<Object> customJsonSerializer) {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        // Pass the custom serializer directly
+        return new DefaultKafkaProducerFactory<>(props, new StringSerializer(), customJsonSerializer);
     }
 
     @Bean
     public KafkaTemplate<String, Object> kafkaTemplate(ProducerFactory<String, Object> producerFactory) {
         return new KafkaTemplate<>(producerFactory);
     }
-
 }

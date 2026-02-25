@@ -13,6 +13,7 @@ public record ProductCreatedEvent(
         Long categoryId,
         String categoryName,
         Boolean isActive,
+        Integer initialStock,
         Instant createdAt,
         String eventId,
         Instant timestamp
@@ -26,6 +27,7 @@ public record ProductCreatedEvent(
             Long categoryId,
             String categoryName,
             Boolean isActive,
+            Integer initialStock,
             Instant createdAt
     ) {
         return new ProductCreatedEvent(
@@ -37,6 +39,7 @@ public record ProductCreatedEvent(
                 categoryId,
                 categoryName,
                 isActive,
+                initialStock != null ? initialStock : 0,
                 createdAt,
                 UUID.randomUUID().toString(),
                 Instant.now()

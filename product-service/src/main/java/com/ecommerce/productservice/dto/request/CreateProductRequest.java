@@ -50,5 +50,8 @@ public record CreateProductRequest(
 
         Boolean isFeatured,
 
+        @Min(value = 0, message = "Initial stock must be non-negative")
+        Integer initialStock,
+
         Map<String, Object> attributes
 ) {}

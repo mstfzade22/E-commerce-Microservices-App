@@ -22,7 +22,7 @@ public class KafkaProducerService {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    public void publishProductCreatedEvent(Product product) {
+    public void publishProductCreatedEvent(Product product, Integer initialStock) {
         ProductCreatedEvent event = ProductCreatedEvent.of(
                 product.getId(),
                 product.getName(),
@@ -32,6 +32,7 @@ public class KafkaProducerService {
                 product.getCategory() != null ? product.getCategory().getId() : null,
                 product.getCategory() != null ? product.getCategory().getName() : null,
                 product.getIsActive(),
+                initialStock,
                 product.getCreatedAt()
         );
 

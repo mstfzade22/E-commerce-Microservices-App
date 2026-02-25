@@ -53,6 +53,12 @@ public class ProductService {
 
         Product product = productMapper.toEntity(request);
 
+        if (request.initialStock() != null && request.initialStock() > 0) {
+            product.setStockStatus(StockStatus.fromQuantity(request.initialStock()));
+        } else {
+            product.setStockStatus(StockStatus.OUT_OF_STOCK);
+        }
+
         if (request.categoryId() != null) {
             Category category = categoryRepository.findById(request.categoryId())
                     .orElseThrow(() -> new ResourceNotFoundException("Category", request.categoryId()));
@@ -62,7 +68,7 @@ public class ProductService {
         Product savedProduct = productRepository.save(product);
         log.info("Product created successfully with id: {}", savedProduct.getId());
 
-        kafkaProducerService.publishProductCreatedEvent(savedProduct);
+        kafkaProducerService.publishProductCreatedEvent(savedProduct, request.initialStock());
 
         return productMapper.toCreateResponse(savedProduct);
     }
