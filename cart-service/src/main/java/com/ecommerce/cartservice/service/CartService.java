@@ -207,7 +207,6 @@ public class CartService {
         return new CartValidationResponse(overallValid, validations);
     }
 
-    // --- Kafka Event Handlers ---
 
     @Transactional
     public void handlePriceChange(PriceChangedEvent event) {

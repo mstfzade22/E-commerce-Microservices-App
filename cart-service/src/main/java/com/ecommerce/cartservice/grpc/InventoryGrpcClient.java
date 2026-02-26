@@ -13,9 +13,6 @@ public class InventoryGrpcClient {
     @GrpcClient("inventory-service")
     private InventoryGrpcServiceGrpc.InventoryGrpcServiceBlockingStub inventoryStub;
 
-    /**
-     * Checks if requested quantity is available in stock.
-     */
     public CheckStockResponse checkStock(Long productId, int quantity) {
         log.debug("gRPC call: CheckStock(productId={}, quantity={})", productId, quantity);
         try {
@@ -27,7 +24,6 @@ public class InventoryGrpcClient {
             );
         } catch (StatusRuntimeException e) {
             log.error("gRPC error checking stock for product {}: {}", productId, e.getStatus());
-            // Return a safe "unavailable" response rather than crashing the cart flow
             return CheckStockResponse.newBuilder()
                     .setIsAvailable(false)
                     .setAvailableQuantity(0)
@@ -35,9 +31,6 @@ public class InventoryGrpcClient {
         }
     }
 
-    /**
-     * Gets detailed stock info (reserved, available, status).
-     */
     public StockInfoResponse getStockInfo(Long productId) {
         log.debug("gRPC call: GetStockInfo({})", productId);
         try {

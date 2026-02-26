@@ -1,6 +1,4 @@
-# ========================
 # Java & Gradle
-# ========================
 *.class
 *.jar
 *.war
@@ -10,23 +8,17 @@ build/
 !gradle/wrapper/gradle-wrapper.jar
 .gradle/
 
-# ========================
 # IDE - IntelliJ IDEA
-# ========================
 .idea/
 *.iml
 *.iws
 *.ipr
 out/
 
-# ========================
 # IDE - VS Code
-# ========================
 .vscode/
 
-# ========================
 # IDE - Eclipse/STS
-# ========================
 .apt_generated
 .classpath
 .factorypath
@@ -36,42 +28,32 @@ out/
 .sts4-cache
 bin/
 
-# ========================
 # IDE - NetBeans
-# ========================
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
 
-# ========================
 # OS Files
-# ========================
 .DS_Store
 .DS_Store?
 ._*
 Thumbs.db
 ehthumbs.db
 
-# ========================
 # Logs
-# ========================
 logs/
 *.log
 *.log.*
 
-# ========================
 # Temporary Files
-# ========================
 *.tmp
 *.temp
 *.swp
 *~
 
-# ========================
 # Environment & Secrets
-# ========================
 .env
 .env.local
 .env.*.local
@@ -79,14 +61,20 @@ logs/
 *.key
 secrets/
 
-# ========================
 # Docker (optional local files)
-# ========================
 docker-compose.override.yml
 
-# ========================
+# Documentation
+docs/
+
+# SQL init scripts
+*.sql
+
+# Vault
+vault-init.sh
+
 # Misc
-# ========================
 *.bak
 *.orig
 HELP.md
+run.txt

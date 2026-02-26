@@ -32,7 +32,7 @@ spring:
 
   data:
     redis:
-      host: localhost
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: 6379
       timeout: 3000ms
       lettuce:
@@ -45,8 +45,8 @@ spring:
 
   cloud:
     vault:
-      uri: http://localhost:8200
-      token: root-token
+      uri: ${SPRING_CLOUD_VAULT_URI:http://localhost:8200}
+      token: ${SPRING_CLOUD_VAULT_TOKEN:root-token}
       enabled: true
       fail-fast: true
       kv:

@@ -6,7 +6,7 @@ import java.util.UUID;
 
 public record CartItemAddedEvent(
         String eventId,
-        String eventType, // e.g., "CART_ITEM_ADDED"
+        String eventType,
         UUID userId,
         Long cartId,
         Long productId,

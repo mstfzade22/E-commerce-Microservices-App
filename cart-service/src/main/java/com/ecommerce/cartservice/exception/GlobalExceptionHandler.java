@@ -21,18 +21,12 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    /**
-     * Handle custom domain exceptions (CartNotFound, ProductNotAvailable, etc.)
-     */
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<ErrorResponse> handleBaseException(BaseException ex, HttpServletRequest request) {
         log.error("Domain Exception [{}]: {}", ex.getStatus(), ex.getMessage());
         return createErrorResponse(ex.getStatus(), ex.getMessage(), request);
     }
 
-    /**
-     * Handle Bean Validation errors (@Valid)
-     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ValidationErrorResponse> handleValidationException(
             MethodArgumentNotValidException ex, HttpServletRequest request) {
@@ -58,9 +52,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(response);
     }
 
-    /**
-     * Handle generic unexpected errors
-     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneralException(Exception ex, HttpServletRequest request) {
         log.error("Unhandled internal error at {}: ", request.getRequestURI(), ex);

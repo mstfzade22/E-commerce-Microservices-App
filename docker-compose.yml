@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  
+
   postgres:
     image: postgres:16
     container_name: postgres
@@ -14,6 +14,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+    networks:
+      - ecommerce-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -28,13 +30,14 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - ecommerce-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  
   vault:
     image: hashicorp/vault:1.15
     container_name: vault
@@ -46,13 +49,31 @@ services:
       - "8200:8200"
     cap_add:
       - IPC_LOCK
+    networks:
+      - ecommerce-network
     healthcheck:
       test: ["CMD", "vault", "status"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  
+  vault-init:
+    image: hashicorp/vault:1.15
+    container_name: vault-init
+    entrypoint: /bin/sh
+    command: ["/vault-init.sh"]
+    volumes:
+      - ./vault-init.sh:/vault-init.sh
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root-token
+    networks:
+      - ecommerce-network
+    depends_on:
+      vault:
+        condition: service_healthy
+    restart: "no"
+
   minio:
     image: minio/minio:latest
     container_name: minio
@@ -61,18 +82,19 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     ports:
-      - "9000:9000"  
-      - "9001:9001"   
+      - "9000:9000"
+      - "9001:9001"
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
+    networks:
+      - ecommerce-network
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  
   kafka:
     image: apache/kafka:3.7.0
     container_name: kafka
@@ -97,13 +119,14 @@ services:
       - "29092:29092"
     volumes:
       - kafka_data:/var/lib/kafka/data
+    networks:
+      - ecommerce-network
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
       interval: 10s
       timeout: 10s
       retries: 5
 
-  
   redpanda-console:
     image: redpandadata/console:latest
     container_name: redpanda-console
@@ -112,19 +135,139 @@ services:
       KAFKA_BROKERS: kafka:9092
     ports:
       - "8080:8080"
+    networks:
+      - ecommerce-network
     depends_on:
       kafka:
         condition: service_healthy
 
-  
   redis-insight:
     image: redis/redisinsight:latest
     container_name: redis-insight
     restart: unless-stopped
     ports:
       - "5540:5540"
+    networks:
+      - ecommerce-network
     depends_on:
       - redis
+
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_CLOUD_VAULT_URI: http://vault:8200
+      SPRING_CLOUD_VAULT_TOKEN: root-token
+      SPRING_DATA_REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    networks:
+      - ecommerce-network
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    container_name: product-service
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+      - "9090:9090"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_CLOUD_VAULT_URI: http://vault:8200
+      SPRING_CLOUD_VAULT_TOKEN: root-token
+      SPRING_DATA_REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MINIO_ENDPOINT: http://minio:9000
+    networks:
+      - ecommerce-network
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  inventory-service:
+    build:
+      context: ./inventory-service
+      dockerfile: Dockerfile
+    container_name: inventory-service
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+      - "9091:9091"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_CLOUD_VAULT_URI: http://vault:8200
+      SPRING_CLOUD_VAULT_TOKEN: root-token
+      SPRING_DATA_REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    networks:
+      - ecommerce-network
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  cart-service:
+    build:
+      context: ./cart-service
+      dockerfile: Dockerfile
+    container_name: cart-service
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_CLOUD_VAULT_URI: http://vault:8200
+      SPRING_CLOUD_VAULT_TOKEN: root-token
+      SPRING_DATA_REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      GRPC_PRODUCT_SERVICE_HOST: product-service
+      GRPC_INVENTORY_SERVICE_HOST: inventory-service
+    networks:
+      - ecommerce-network
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+
+networks:
+  ecommerce-network:
+    driver: bridge
 
 volumes:
   postgres_data:

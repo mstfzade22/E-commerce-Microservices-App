@@ -11,14 +11,7 @@ import java.util.UUID;
 @Repository
 public interface CartRepository extends JpaRepository<Cart, Long> {
 
-    /**
-     * Finds the active cart for a specific user.
-     * Used during most cart operations (add, update, get).
-     */
     Optional<Cart> findByUserIdAndStatus(UUID userId, CartStatus status);
 
-    /**
-     * Checks if a user already has a cart with a specific status.
-     */
     boolean existsByUserIdAndStatus(UUID userId, CartStatus status);
 }

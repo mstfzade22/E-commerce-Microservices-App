@@ -16,9 +16,6 @@ public class ProductGrpcClient {
     @GrpcClient("product-service")
     private ProductGrpcServiceGrpc.ProductGrpcServiceBlockingStub productStub;
 
-    /**
-     * Fetches a single product by ID.
-     */
     public ProductResponse getProduct(Long productId) {
         log.debug("gRPC call: GetProduct({})", productId);
         try {
@@ -31,9 +28,6 @@ public class ProductGrpcClient {
         }
     }
 
-    /**
-     * Bulk fetches products by a list of IDs.
-     */
     public List<ProductResponse> getProductsByIds(List<Long> productIds) {
         log.debug("gRPC call: GetProductsByIds({})", productIds);
         try {
@@ -47,9 +41,6 @@ public class ProductGrpcClient {
         }
     }
 
-    /**
-     * Quickly checks if a product exists.
-     */
     public boolean checkProductExists(Long productId) {
         log.debug("gRPC call: CheckProductExists({})", productId);
         try {
