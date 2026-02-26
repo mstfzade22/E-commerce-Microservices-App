@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package com.ecommerce.productservice.grpc;
+
+option java_multiple_files = true;
+option java_package = "com.ecommerce.productservice.grpc";
+option java_outer_classname = "ProductProto";
+
+service ProductGrpcService {
+    rpc GetProduct(GetProductRequest) returns (ProductResponse);
+
+    rpc GetProductsByIds(GetProductsByIdsRequest) returns (ProductListResponse);
+
+    rpc CheckProductExists(CheckProductExistsRequest) returns (CheckProductExistsResponse);
+
+    rpc GetProductStockStatus(GetProductStockStatusRequest) returns (ProductStockStatusResponse);
+
+    rpc GetProductsByCategory(GetProductsByCategoryRequest) returns (ProductListResponse);
+}
+
+message GetProductRequest {
+    int64 product_id = 1;
+}
+
+message GetProductsByIdsRequest {
+    repeated int64 product_ids = 1;
+}
+
+message CheckProductExistsRequest {
+    int64 product_id = 1;
+}
+
+message GetProductStockStatusRequest {
+    int64 product_id = 1;
+}
+
+message GetProductsByCategoryRequest {
+    int64 category_id = 1;
+    int32 page = 2;
+    int32 size = 3;
+}
+
+message ProductResponse {
+    int64 id = 1;
+    string name = 2;
+    string slug = 3;
+    string description = 4;
+    string short_description = 5;
+    string price = 6;
+    string discount_price = 7;
+    string sku = 8;
+    StockStatus stock_status = 9;
+    bool is_active = 10;
+    bool is_featured = 11;
+    CategoryInfo category = 12;
+    repeated ProductImageInfo images = 13;
+    string created_at = 14;
+    string updated_at = 15;
+}
+
+message ProductListResponse {
+    repeated ProductResponse products = 1;
+    int32 total_count = 2;
+    int32 page = 3;
+    int32 size = 4;
+}
+
+message CheckProductExistsResponse {
+    bool exists = 1;
+    int64 product_id = 2;
+}
+
+message ProductStockStatusResponse {
+    int64 product_id = 1;
+    StockStatus stock_status = 2;
+    bool is_active = 3;
+}
+
+enum StockStatus {
+    STOCK_STATUS_UNSPECIFIED = 0;
+    AVAILABLE = 1;
+    LOW_STOCK = 2;
+    OUT_OF_STOCK = 3;
+}
+
+message CategoryInfo {
+    int64 id = 1;
+    string name = 2;
+    string slug = 3;
+}
+
+message ProductImageInfo {
+    int64 id = 1;
+    string image_url = 2;
+    string alt_text = 3;
+    bool is_primary = 4;
+    int32 display_order = 5;
+}

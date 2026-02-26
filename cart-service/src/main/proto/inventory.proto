@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package com.ecommerce.inventoryservice.grpc;
+
+option java_multiple_files = true;
+option java_package = "com.ecommerce.inventoryservice.grpc";
+option java_outer_classname = "InventoryProto";
+
+service InventoryGrpcService {
+  rpc CheckStock(CheckStockRequest) returns (CheckStockResponse);
+  rpc ReserveStock(ReserveStockRequest) returns (ReserveStockResponse);
+  rpc ReleaseStock(ReleaseStockRequest) returns (ReleaseStockResponse);
+  rpc ConfirmStock(ConfirmStockRequest) returns (ConfirmStockResponse);
+  rpc GetStockInfo(GetStockInfoRequest) returns (StockInfoResponse);
+}
+
+message CheckStockRequest {
+  int64 product_id = 1;
+  int32 quantity = 2;
+}
+
+message CheckStockResponse {
+  bool is_available = 1;
+  int32 available_quantity = 2;
+}
+
+message ReserveStockRequest {
+  int64 product_id = 1;
+  string order_id = 2;
+  int32 quantity = 3;
+}
+
+message ReserveStockResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ReleaseStockRequest {
+  int64 product_id = 1;
+  string order_id = 2;
+}
+
+message ReleaseStockResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ConfirmStockRequest {
+  int64 product_id = 1;
+  string order_id = 2;
+}
+
+message ConfirmStockResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetStockInfoRequest {
+  int64 product_id = 1;
+}
+
+message StockInfoResponse {
+  int64 product_id = 1;
+  int32 quantity = 2;
+  int32 reserved_quantity = 3;
+  string stock_status = 4;
+}
