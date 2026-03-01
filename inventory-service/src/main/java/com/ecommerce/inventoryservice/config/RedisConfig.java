@@ -1,7 +1,6 @@
 package com.ecommerce.inventoryservice.config;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -15,9 +14,9 @@ import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.RedisSerializer;
-import org.springframework.data.redis.serializer.SerializationException;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
@@ -36,7 +35,7 @@ public class RedisConfig {
     private int redisPort;
 
     @Bean
-    public ObjectMapper redisObjectMapper() {
+    public RedisSerializer<Object> jsonRedisSerializer() {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         objectMapper.activateDefaultTyping(
@@ -44,36 +43,7 @@ public class RedisConfig {
                 ObjectMapper.DefaultTyping.EVERYTHING,
                 JsonTypeInfo.As.PROPERTY
         );
-        return objectMapper;
-    }
-
-    @Bean
-    public RedisSerializer<Object> jsonRedisSerializer(ObjectMapper redisObjectMapper) {
-        return new RedisSerializer<>() {
-            @Override
-            public byte[] serialize(Object value) throws SerializationException {
-                if (value == null) {
-                    return new byte[0];
-                }
-                try {
-                    return redisObjectMapper.writeValueAsBytes(value);
-                } catch (JsonProcessingException e) {
-                    throw new SerializationException("Error serializing object to JSON", e);
-                }
-            }
-
-            @Override
-            public Object deserialize(byte[] bytes) throws SerializationException {
-                if (bytes == null || bytes.length == 0) {
-                    return null;
-                }
-                try {
-                    return redisObjectMapper.readValue(bytes, Object.class);
-                } catch (Exception e) {
-                    throw new SerializationException("Error deserializing JSON to object", e);
-                }
-            }
-        };
+        return new GenericJackson2JsonRedisSerializer(objectMapper);
     }
 
     @Bean

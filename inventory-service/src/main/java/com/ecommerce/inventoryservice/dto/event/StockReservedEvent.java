@@ -5,7 +5,7 @@ import java.time.Instant;
 
 public record StockReservedEvent(
         String eventId,
-        String eventType, // "STOCK_RESERVED"
+        String eventType,
         Long productId,
         String orderId,
         Integer reservedQuantity,

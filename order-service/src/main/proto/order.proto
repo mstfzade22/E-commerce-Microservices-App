@@ -1,0 +1,165 @@
+syntax = "proto3";
+
+package com.ecommerce.orderservice.grpc;
+
+option java_multiple_files = true;
+option java_package = "com.ecommerce.orderservice.grpc";
+option java_outer_classname = "OrderProto";
+
+service OrderGrpcService {
+  rpc CreateOrder(CreateOrderGrpcRequest) returns (OrderCreateGrpcResponse);
+  rpc GetOrder(GetOrderRequest) returns (OrderGrpcResponse);
+  rpc GetOrdersByUser(GetOrdersByUserRequest) returns (OrderListResponse);
+  rpc GetOrdersByStatus(GetOrdersByStatusRequest) returns (OrderListResponse);
+  rpc CancelOrder(CancelOrderGrpcRequest) returns (CancelOrderGrpcResponse);
+  rpc UpdateOrderStatus(UpdateOrderStatusRequest) returns (UpdateOrderStatusResponse);
+  rpc GetOrderSummary(GetOrderSummaryRequest) returns (OrderSummaryGrpcResponse);
+}
+
+// ==================== Enums ====================
+
+enum OrderStatusProto {
+  ORDER_STATUS_UNSPECIFIED = 0;
+  PENDING = 1;
+  CONFIRMED = 2;
+  PROCESSING = 3;
+  SHIPPED = 4;
+  DELIVERED = 5;
+  CANCELLED = 6;
+  REFUNDED = 7;
+}
+
+// ==================== Request Messages ====================
+
+message CreateOrderGrpcRequest {
+  string user_id = 1;
+  string shipping_address_line1 = 2;
+  string shipping_address_line2 = 3;
+  string shipping_city = 4;
+  string shipping_state = 5;
+  string shipping_postal_code = 6;
+  string shipping_country = 7;
+  string notes = 8;
+}
+
+message GetOrderRequest {
+  string order_number = 1;
+}
+
+message GetOrdersByUserRequest {
+  string user_id = 1;
+  int32 page = 2;
+  int32 size = 3;
+}
+
+message GetOrdersByStatusRequest {
+  OrderStatusProto status = 1;
+  int32 page = 2;
+  int32 size = 3;
+}
+
+message CancelOrderGrpcRequest {
+  string order_number = 1;
+  string user_id = 2;
+  string reason = 3;
+}
+
+message UpdateOrderStatusRequest {
+  string order_number = 1;
+  OrderStatusProto new_status = 2;
+  string changed_by = 3;
+  string reason = 4;
+}
+
+message GetOrderSummaryRequest {
+  string order_number = 1;
+}
+
+// ==================== Response Messages ====================
+
+message OrderCreateGrpcResponse {
+  bool success = 1;
+  string order_number = 2;
+  OrderStatusProto status = 3;
+  string final_amount = 4;
+  int32 item_count = 5;
+  string message = 6;
+  string created_at = 7;
+}
+
+message OrderGrpcResponse {
+  int64 id = 1;
+  string order_number = 2;
+  string user_id = 3;
+  OrderStatusProto status = 4;
+  repeated OrderItemGrpcResponse items = 5;
+  string total_amount = 6;
+  string discount_amount = 7;
+  string final_amount = 8;
+  string currency = 9;
+  ShippingAddressGrpc shipping_address = 10;
+  string notes = 11;
+  string cancelled_reason = 12;
+  repeated OrderStatusHistoryGrpc status_history = 13;
+  string created_at = 14;
+  string updated_at = 15;
+}
+
+message OrderItemGrpcResponse {
+  int64 id = 1;
+  int64 product_id = 2;
+  string product_name = 3;
+  string product_image_url = 4;
+  string sku = 5;
+  string unit_price = 6;
+  int32 quantity = 7;
+  string subtotal = 8;
+}
+
+message ShippingAddressGrpc {
+  string address_line1 = 1;
+  string address_line2 = 2;
+  string city = 3;
+  string state = 4;
+  string postal_code = 5;
+  string country = 6;
+}
+
+message OrderStatusHistoryGrpc {
+  OrderStatusProto previous_status = 1;
+  OrderStatusProto new_status = 2;
+  string changed_by = 3;
+  string reason = 4;
+  string changed_at = 5;
+}
+
+message OrderSummaryGrpcResponse {
+  string order_number = 1;
+  OrderStatusProto status = 2;
+  int32 item_count = 3;
+  string final_amount = 4;
+  string currency = 5;
+  string created_at = 6;
+}
+
+message OrderListResponse {
+  repeated OrderGrpcResponse orders = 1;
+  int32 total_count = 2;
+  int32 page = 3;
+  int32 size = 4;
+  int32 total_pages = 5;
+}
+
+message CancelOrderGrpcResponse {
+  bool success = 1;
+  string message = 2;
+  string order_number = 3;
+  OrderStatusProto status = 4;
+}
+
+message UpdateOrderStatusResponse {
+  bool success = 1;
+  string message = 2;
+  string order_number = 3;
+  OrderStatusProto status = 4;
+}

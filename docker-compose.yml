@@ -52,10 +52,11 @@ services:
     networks:
       - ecommerce-network
     healthcheck:
-      test: ["CMD", "vault", "status"]
-      interval: 10s
+      test: ["CMD-SHELL", "vault status -address=http://127.0.0.1:8200 || [ $$? -eq 2 ]"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 5s
 
   vault-init:
     image: hashicorp/vault:1.15
@@ -263,6 +264,41 @@ services:
       product-service:
         condition: service_started
       inventory-service:
+        condition: service_started
+
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: order-service
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_CLOUD_VAULT_URI: http://vault:8200
+      SPRING_CLOUD_VAULT_TOKEN: root-token
+      SPRING_DATA_REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      GRPC_PRODUCT_SERVICE_HOST: product-service
+      GRPC_INVENTORY_SERVICE_HOST: inventory-service
+      CART_SERVICE_URL: http://cart-service:8084/api/v1
+    networks:
+      - ecommerce-network
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+      cart-service:
         condition: service_started
 
 networks:

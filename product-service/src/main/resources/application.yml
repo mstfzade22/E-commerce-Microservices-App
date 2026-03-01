@@ -54,6 +54,8 @@ spring:
       kv:
         enabled: true
         backend: secret
+        default-context: product-service
+        backend-version: 2
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}

@@ -5,7 +5,7 @@ import java.time.Instant;
 
 public record StockReleasedEvent(
         String eventId,
-        String eventType, // "STOCK_RELEASED"
+        String eventType,
         Long productId,
         String orderId,
         Integer releasedQuantity,

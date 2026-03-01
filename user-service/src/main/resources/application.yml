@@ -53,6 +53,7 @@ spring:
         enabled: true
         backend: secret
         default-context: user-service
+        backend-version: 2
 
 server:
   port: 8081

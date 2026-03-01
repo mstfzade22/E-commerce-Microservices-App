@@ -6,6 +6,8 @@ import com.ecommerce.cartservice.dto.response.CartResponse;
 import com.ecommerce.cartservice.dto.response.CartSummaryResponse;
 import com.ecommerce.cartservice.dto.response.CartValidationResponse;
 import com.ecommerce.cartservice.service.CartService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,11 +21,13 @@ import java.util.UUID;
 @RequestMapping("/cart")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "Cart", description = "Shopping cart management endpoints")
 public class CartController {
 
     private final CartService cartService;
 
     @GetMapping
+    @Operation(summary = "Get cart", description = "Returns the current user's active cart with all items")
     public ResponseEntity<CartResponse> getCart() {
         UUID userId = extractUserId();
         log.debug("GET /cart for user {}", userId);
@@ -31,6 +35,7 @@ public class CartController {
     }
 
     @PostMapping("/items")
+    @Operation(summary = "Add item to cart", description = "Adds a product to the cart. If the product already exists, increases the quantity")
     public ResponseEntity<CartResponse> addToCart(@Valid @RequestBody AddToCartRequest request) {
         UUID userId = extractUserId();
         log.debug("POST /cart/items for user {} - productId={}, quantity={}", userId, request.productId(), request.quantity());
@@ -38,6 +43,7 @@ public class CartController {
     }
 
     @PutMapping("/items/{productId}")
+    @Operation(summary = "Update item quantity", description = "Updates the quantity of a specific product in the cart")
     public ResponseEntity<CartResponse> updateItemQuantity(
             @PathVariable Long productId,
             @Valid @RequestBody UpdateCartItemRequest request) {
@@ -47,6 +53,7 @@ public class CartController {
     }
 
     @DeleteMapping("/items/{productId}")
+    @Operation(summary = "Remove item from cart", description = "Removes a specific product from the cart")
     public ResponseEntity<CartResponse> removeItem(@PathVariable Long productId) {
         UUID userId = extractUserId();
         log.debug("DELETE /cart/items/{} for user {}", productId, userId);
@@ -54,6 +61,7 @@ public class CartController {
     }
 
     @DeleteMapping
+    @Operation(summary = "Clear cart", description = "Removes all items from the cart")
     public ResponseEntity<Void> clearCart() {
         UUID userId = extractUserId();
         log.debug("DELETE /cart for user {}", userId);
@@ -62,6 +70,7 @@ public class CartController {
     }
 
     @GetMapping("/summary")
+    @Operation(summary = "Get cart summary", description = "Returns a lightweight summary with total items and total price")
     public ResponseEntity<CartSummaryResponse> getSummary() {
         UUID userId = extractUserId();
         log.debug("GET /cart/summary for user {}", userId);
@@ -69,6 +78,7 @@ public class CartController {
     }
 
     @PostMapping("/validate")
+    @Operation(summary = "Validate cart", description = "Checks all cart items for availability, stock, and price changes before checkout")
     public ResponseEntity<CartValidationResponse> validateCart() {
         UUID userId = extractUserId();
         log.debug("POST /cart/validate for user {}", userId);
