@@ -1,12 +1,12 @@
 package com.ecommerce.productservice.config;
 
-import com.ecommerce.productservice.dto.event.InventoryStockUpdatedEvent;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,29 +23,28 @@ import java.util.Map;
 @Configuration
 @EnableKafka
 @Slf4j
-@RequiredArgsConstructor
 public class KafkaConsumerConfig {
 
-    @Value("${spring.kafka.bootstrap-servers}")
-    private String bootstrapServers;
-
-    @Value("${spring.kafka.consumer.group-id:product-service-group}")
-    private String groupId;
-
+    private final String bootstrapServers;
     private final ObjectMapper kafkaObjectMapper;
 
+    public KafkaConsumerConfig(
+            @Value("${spring.kafka.bootstrap-servers}") String bootstrapServers,
+            @Qualifier("kafkaObjectMapper") ObjectMapper kafkaObjectMapper) {
+        this.bootstrapServers = bootstrapServers;
+        this.kafkaObjectMapper = kafkaObjectMapper;
+    }
+
     @Bean
-    public Deserializer<InventoryStockUpdatedEvent> inventoryEventDeserializer() {
+    public Deserializer<JsonNode> jsonNodeDeserializer() {
         return new Deserializer<>() {
             @Override
-            public InventoryStockUpdatedEvent deserialize(String topic, byte[] data) {
-                if (data == null) {
-                    return null;
-                }
+            public JsonNode deserialize(String topic, byte[] data) {
+                if (data == null) return null;
                 try {
-                    return kafkaObjectMapper.readValue(data, InventoryStockUpdatedEvent.class);
+                    return kafkaObjectMapper.readTree(data);
                 } catch (Exception e) {
-                    log.error("Error deserializing InventoryStockUpdatedEvent: {}", e.getMessage());
+                    log.error("Error deserializing message to JsonNode: {}", e.getMessage());
                     throw new RuntimeException("Error deserializing message", e);
                 }
             }
@@ -53,25 +52,24 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
-    public ConsumerFactory<String, InventoryStockUpdatedEvent> inventoryEventConsumerFactory(
-            Deserializer<InventoryStockUpdatedEvent> inventoryEventDeserializer) {
+    public ConsumerFactory<String, JsonNode> consumerFactory(Deserializer<JsonNode> jsonNodeDeserializer) {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        configProps.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        configProps.put(ConsumerConfig.GROUP_ID_CONFIG, KafkaTopicConfig.PRODUCT_SERVICE_GROUP);
         configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
 
-        log.info("Kafka consumer configured with bootstrap servers: {}, group: {}", bootstrapServers, groupId);
+        log.info("Kafka consumer configured with bootstrap servers: {}, group: {}", bootstrapServers, KafkaTopicConfig.PRODUCT_SERVICE_GROUP);
 
-        return new DefaultKafkaConsumerFactory<>(configProps, new StringDeserializer(), inventoryEventDeserializer);
+        return new DefaultKafkaConsumerFactory<>(configProps, new StringDeserializer(), jsonNodeDeserializer);
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, InventoryStockUpdatedEvent> kafkaListenerContainerFactory(
-            ConsumerFactory<String, InventoryStockUpdatedEvent> inventoryEventConsumerFactory) {
-        ConcurrentKafkaListenerContainerFactory<String, InventoryStockUpdatedEvent> factory =
+    public ConcurrentKafkaListenerContainerFactory<String, JsonNode> kafkaListenerContainerFactory(
+            ConsumerFactory<String, JsonNode> consumerFactory) {
+        ConcurrentKafkaListenerContainerFactory<String, JsonNode> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(inventoryEventConsumerFactory);
+        factory.setConsumerFactory(consumerFactory);
 
         // Configure error handler with retry (3 retries, 1 second interval)
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(

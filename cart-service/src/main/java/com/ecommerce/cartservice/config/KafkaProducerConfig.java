@@ -20,8 +20,11 @@ import java.util.Map;
 @Configuration
 public class KafkaProducerConfig {
 
-    @Value("${spring.kafka.bootstrap-servers}")
-    private String bootstrapServers;
+    private final String bootstrapServers;
+
+    public KafkaProducerConfig(@Value("${spring.kafka.bootstrap-servers}") String bootstrapServers) {
+        this.bootstrapServers = bootstrapServers;
+    }
 
     @Bean(name = "kafkaObjectMapper")
     public ObjectMapper kafkaObjectMapper() {
@@ -33,6 +36,7 @@ public class KafkaProducerConfig {
     @Bean
     public Serializer<Object> jsonSerializer(@Qualifier("kafkaObjectMapper") ObjectMapper kafkaObjectMapper) {
         return (topic, data) -> {
+            if (data == null) return null;
             try {
                 return kafkaObjectMapper.writeValueAsBytes(data);
             } catch (JsonProcessingException e) {
@@ -45,7 +49,6 @@ public class KafkaProducerConfig {
     public ProducerFactory<String, Object> producerFactory(Serializer<Object> jsonSerializer) {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         return new DefaultKafkaProducerFactory<>(configProps, new StringSerializer(), jsonSerializer);
     }
 

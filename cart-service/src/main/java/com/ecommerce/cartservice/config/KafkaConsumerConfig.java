@@ -21,11 +21,18 @@ import java.util.Map;
 @Configuration
 public class KafkaConsumerConfig {
 
-    @Value("${spring.kafka.bootstrap-servers}")
-    private String bootstrapServers;
+    private final String bootstrapServers;
+    private final ObjectMapper kafkaObjectMapper;
+
+    public KafkaConsumerConfig(
+            @Value("${spring.kafka.bootstrap-servers}") String bootstrapServers,
+            @Qualifier("kafkaObjectMapper") ObjectMapper kafkaObjectMapper) {
+        this.bootstrapServers = bootstrapServers;
+        this.kafkaObjectMapper = kafkaObjectMapper;
+    }
 
     @Bean
-    public Deserializer<JsonNode> jsonNodeDeserializer(@Qualifier("kafkaObjectMapper") ObjectMapper kafkaObjectMapper) {
+    public Deserializer<JsonNode> jsonNodeDeserializer() {
         return (topic, data) -> {
             if (data == null) return null;
             try {
@@ -42,7 +49,6 @@ public class KafkaConsumerConfig {
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, KafkaTopicConfig.CART_SERVICE_GROUP);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
 
         return new DefaultKafkaConsumerFactory<>(props, new StringDeserializer(), jsonNodeDeserializer);
     }

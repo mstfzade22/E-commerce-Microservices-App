@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,10 +22,13 @@ import java.util.Map;
 @Slf4j
 public class KafkaProducerConfig {
 
-    @Value("${spring.kafka.bootstrap-servers}")
-    private String bootstrapServers;
+    private final String bootstrapServers;
 
-    @Bean
+    public KafkaProducerConfig(@Value("${spring.kafka.bootstrap-servers}") String bootstrapServers) {
+        this.bootstrapServers = bootstrapServers;
+    }
+
+    @Bean(name = "kafkaObjectMapper")
     public ObjectMapper kafkaObjectMapper() {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
@@ -32,8 +36,9 @@ public class KafkaProducerConfig {
     }
 
     @Bean
-    public Serializer<Object> jsonSerializer(ObjectMapper kafkaObjectMapper) {
+    public Serializer<Object> jsonSerializer(@Qualifier("kafkaObjectMapper") ObjectMapper kafkaObjectMapper) {
         return (topic, data) -> {
+            if (data == null) return null;
             try {
                 return kafkaObjectMapper.writeValueAsBytes(data);
             } catch (JsonProcessingException e) {

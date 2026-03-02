@@ -2,9 +2,11 @@ package com.ecommerce.inventoryservice.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,18 +20,21 @@ import java.util.Map;
 @Configuration
 public class KafkaProducerConfig {
 
-    @Value("${spring.kafka.bootstrap-servers:localhost:29092}")
-    private String bootstrapServers;
+    private final String bootstrapServers;
 
-    @Bean
+    public KafkaProducerConfig(@Value("${spring.kafka.bootstrap-servers:localhost:29092}") String bootstrapServers) {
+        this.bootstrapServers = bootstrapServers;
+    }
+
+    @Bean(name = "kafkaObjectMapper")
     public ObjectMapper kafkaObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        mapper.registerModule(new JavaTimeModule());
         return mapper;
     }
 
     @Bean
-    public Serializer<Object> customJsonSerializer(ObjectMapper kafkaObjectMapper) {
+    public Serializer<Object> jsonSerializer(@Qualifier("kafkaObjectMapper") ObjectMapper kafkaObjectMapper) {
         return (topic, data) -> {
             if (data == null) return null;
             try {
@@ -41,12 +46,10 @@ public class KafkaProducerConfig {
     }
 
     @Bean
-    public ProducerFactory<String, Object> producerFactory(Serializer<Object> customJsonSerializer) {
+    public ProducerFactory<String, Object> producerFactory(Serializer<Object> jsonSerializer) {
         Map<String, Object> props = new HashMap<>();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        // Pass the custom serializer directly
-        return new DefaultKafkaProducerFactory<>(props, new StringSerializer(), customJsonSerializer);
+        return new DefaultKafkaProducerFactory<>(props, new StringSerializer(), jsonSerializer);
     }
 
     @Bean

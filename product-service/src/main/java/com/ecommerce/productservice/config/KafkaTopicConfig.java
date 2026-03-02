@@ -9,4 +9,6 @@ public final class KafkaTopicConfig {
 
     public static final String INVENTORY_EVENTS_TOPIC = "inventory-events";
 
+    public static final String PRODUCT_SERVICE_GROUP = "product-service-group";
+
 }

@@ -36,6 +36,7 @@ public class KafkaProducerConfig {
     @Bean
     public Serializer<Object> jsonSerializer(@Qualifier("kafkaObjectMapper") ObjectMapper kafkaObjectMapper) {
         return (topic, data) -> {
+            if (data == null) return null;
             try {
                 return kafkaObjectMapper.writeValueAsBytes(data);
             } catch (JsonProcessingException e) {

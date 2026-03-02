@@ -7,7 +7,7 @@ plugins {
 
 group = 'com.ecommerce'
 version = '0.0.1-SNAPSHOT'
-description = 'cart-service'
+description = 'order-service'
 
 java {
     toolchain {
