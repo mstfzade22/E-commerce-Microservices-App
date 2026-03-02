@@ -76,5 +76,5 @@ vault-init.sh
 # Misc
 *.bak
 *.orig
-HELP.md
+*.md
 run.txt
