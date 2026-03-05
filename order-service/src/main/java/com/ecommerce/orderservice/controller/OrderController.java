@@ -65,8 +65,8 @@ public class OrderController {
     }
 
     @PostMapping("/{orderNumber}/confirm")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STORE')")
-    @Operation(summary = "Confirm order", description = "Confirms an order (simulates payment success)")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN', 'STORE')")
+    @Operation(summary = "Confirm order", description = "Confirms an order before payment")
     public ResponseEntity<OrderResponse> confirmOrder(@PathVariable String orderNumber) {
         UUID userId = extractUserId();
         log.debug("POST /orders/{}/confirm by user {}", orderNumber, userId);

@@ -3,6 +3,8 @@ package com.ecommerce.inventoryservice.kafka;
 import com.ecommerce.inventoryservice.config.KafkaTopicConfig;
 import com.ecommerce.inventoryservice.dto.event.ProductCreatedEvent;
 import com.ecommerce.inventoryservice.dto.event.ProductDeletedEvent;
+import com.ecommerce.inventoryservice.dto.event.ProductUpdatedEvent;
+import com.ecommerce.inventoryservice.dto.request.StockUpdateRequest;
 import com.ecommerce.inventoryservice.service.InventoryService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,6 +34,13 @@ public class ProductEventConsumer {
                 ProductDeletedEvent event = objectMapper.treeToValue(payload, ProductDeletedEvent.class);
                 log.info("Consumed ProductDeletedEvent from {} for productId: {}", KafkaTopicConfig.PRODUCT_EVENTS_TOPIC, event.id());
                 inventoryService.deleteInventory(event.id());
+
+            } else if (payload.has("updatedAt") && !payload.get("updatedAt").isNull()) {
+                ProductUpdatedEvent event = objectMapper.treeToValue(payload, ProductUpdatedEvent.class);
+                log.info("Consumed ProductUpdatedEvent from {} for productId: {}", KafkaTopicConfig.PRODUCT_EVENTS_TOPIC, event.id());
+                if (event.stock() != null) {
+                    inventoryService.updateOrCreateStock(event.id(), event.stock());
+                }
 
             } else if (payload.has("categoryId")) {
                 ProductCreatedEvent event = objectMapper.treeToValue(payload, ProductCreatedEvent.class);

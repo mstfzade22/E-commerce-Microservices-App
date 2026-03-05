@@ -1,6 +1,7 @@
 package com.ecommerce.paymentservice.service;
 
 import com.ecommerce.paymentservice.client.KapitalBankClient;
+import com.ecommerce.paymentservice.client.OrderServiceClient;
 import com.ecommerce.paymentservice.dto.event.PaymentFailedEvent;
 import com.ecommerce.paymentservice.dto.event.PaymentInitiatedEvent;
 import com.ecommerce.paymentservice.dto.event.PaymentRefundedEvent;
@@ -18,6 +19,7 @@ import com.ecommerce.paymentservice.entity.PaymentStatus;
 import com.ecommerce.paymentservice.entity.PaymentStatusHistory;
 import com.ecommerce.paymentservice.exception.InvalidPaymentStatusException;
 import com.ecommerce.paymentservice.exception.KapitalBankException;
+import com.ecommerce.paymentservice.exception.OrderNotConfirmedException;
 import com.ecommerce.paymentservice.exception.PaymentAlreadyExistsException;
 import com.ecommerce.paymentservice.exception.PaymentNotFoundException;
 import com.ecommerce.paymentservice.kafka.PaymentEventProducer;
@@ -45,6 +47,7 @@ public class PaymentService {
     private final PaymentMapper paymentMapper;
     private final KapitalBankClient kapitalBankClient;
     private final PaymentEventProducer paymentEventProducer;
+    private final OrderServiceClient orderServiceClient;
 
     @Value("${kapitalbank.payment-page-url}")
     private String paymentPageUrl;
@@ -56,17 +59,25 @@ public class PaymentService {
                           PaymentStatusHistoryRepository statusHistoryRepository,
                           PaymentMapper paymentMapper,
                           KapitalBankClient kapitalBankClient,
-                          PaymentEventProducer paymentEventProducer) {
+                          PaymentEventProducer paymentEventProducer,
+                          OrderServiceClient orderServiceClient) {
         this.paymentRepository = paymentRepository;
         this.statusHistoryRepository = statusHistoryRepository;
         this.paymentMapper = paymentMapper;
         this.kapitalBankClient = kapitalBankClient;
         this.paymentEventProducer = paymentEventProducer;
+        this.orderServiceClient = orderServiceClient;
     }
 
     @Transactional
-    public PaymentInitiatedResponse initiatePayment(UUID userId, InitiatePaymentRequest request, BigDecimal amount) {
+    public PaymentInitiatedResponse initiatePayment(UUID userId, InitiatePaymentRequest request, BigDecimal amount, String accessToken) {
         log.info("Initiating payment for order {} by user {}", request.orderNumber(), userId);
+
+        String orderStatus = orderServiceClient.getOrderStatus(request.orderNumber(), accessToken);
+        if (!"CONFIRMED".equals(orderStatus)) {
+            throw new OrderNotConfirmedException(
+                    "Order " + request.orderNumber() + " is in status " + orderStatus + ". Only CONFIRMED orders can be paid.");
+        }
 
         if (paymentRepository.existsByOrderNumberAndStatusNot(request.orderNumber(), PaymentStatus.ERROR)) {
             throw new PaymentAlreadyExistsException("Payment already exists for order: " + request.orderNumber());

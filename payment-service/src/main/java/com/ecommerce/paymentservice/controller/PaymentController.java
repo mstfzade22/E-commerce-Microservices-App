@@ -8,6 +8,7 @@ import com.ecommerce.paymentservice.dto.response.PaymentStatusHistoryResponse;
 import com.ecommerce.paymentservice.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,14 +34,16 @@ public class PaymentController {
 
     @PostMapping("/initiate")
     @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE', 'ADMIN')")
-    @Operation(summary = "Initiate payment", description = "Initiates a payment for an order")
+    @Operation(summary = "Initiate payment", description = "Initiates a payment for an order (order must be CONFIRMED)")
     public ResponseEntity<PaymentInitiatedResponse> initiatePayment(
             @Valid @RequestBody InitiatePaymentRequest request,
-            @RequestParam BigDecimal amount) {
+            @RequestParam BigDecimal amount,
+            HttpServletRequest httpRequest) {
         UUID userId = extractUserId();
+        String accessToken = extractToken(httpRequest);
         log.debug("POST /payments/initiate for order {} by user {}", request.orderNumber(), userId);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(paymentService.initiatePayment(userId, request, amount));
+                .body(paymentService.initiatePayment(userId, request, amount, accessToken));
     }
 
     @GetMapping("/{paymentId}")
@@ -96,5 +100,22 @@ public class PaymentController {
     private String extractRole() {
         return SecurityContextHolder.getContext().getAuthentication()
                 .getAuthorities().iterator().next().getAuthority();
+    }
+
+    private String extractToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+
+        if (request.getCookies() != null) {
+            return Arrays.stream(request.getCookies())
+                    .filter(cookie -> "access_token".equals(cookie.getName()))
+                    .map(jakarta.servlet.http.Cookie::getValue)
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        return null;
     }
 }

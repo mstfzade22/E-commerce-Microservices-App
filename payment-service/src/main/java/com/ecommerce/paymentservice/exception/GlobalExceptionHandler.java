@@ -45,7 +45,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
     }
 
-    @ExceptionHandler({InvalidPaymentStatusException.class, KapitalBankException.class})
+    @ExceptionHandler({InvalidPaymentStatusException.class, KapitalBankException.class, OrderNotConfirmedException.class})
     public ResponseEntity<ErrorResponse> handleBadRequestExceptions(RuntimeException ex, HttpServletRequest request) {
         log.warn("Bad request: {}", ex.getMessage());
         ErrorResponse errorResponse = new ErrorResponse(

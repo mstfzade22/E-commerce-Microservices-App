@@ -173,8 +173,8 @@ public class KapitalBankClient {
 
             return parseXml(response.body());
         } catch (Exception e) {
-            log.error("Failed to communicate with Kapital Bank: {}", e.getMessage());
-            throw new RuntimeException("Kapital Bank communication error: " + e.getMessage(), e);
+            log.error("Failed to communicate with Kapital Bank: {} - {}", e.getClass().getName(), e.getMessage(), e);
+            throw new RuntimeException("Kapital Bank communication error: " + e.getClass().getName() + " - " + e.getMessage(), e);
         }
     }
 

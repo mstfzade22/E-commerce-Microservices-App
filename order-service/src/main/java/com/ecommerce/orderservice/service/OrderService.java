@@ -201,6 +201,30 @@ public class OrderService {
         Order order = findOrderByNumber(orderNumber);
         validateStatusTransition(order, OrderStatus.CONFIRMED);
 
+        updateOrderStatus(order, OrderStatus.CONFIRMED, changedBy, "Order confirmed by customer");
+
+        return orderMapper.toOrderResponse(order);
+    }
+
+    @Transactional
+    @CacheEvict(value = RedisConfig.CacheNames.ORDER_BY_ID, allEntries = true)
+    public void handlePaymentSuccess(String orderNumber) {
+        log.info("Handling payment success for order {}", orderNumber);
+
+        Order order = findOrderByNumber(orderNumber);
+
+        if (order.getStatus() == OrderStatus.PROCESSING ||
+                order.getStatus() == OrderStatus.SHIPPED ||
+                order.getStatus() == OrderStatus.DELIVERED) {
+            log.info("Order {} already in status {}, ignoring duplicate payment success", orderNumber, order.getStatus());
+            return;
+        }
+
+        if (order.getStatus() != OrderStatus.CONFIRMED) {
+            log.warn("Order {} is in status {}, expected CONFIRMED for payment success", orderNumber, order.getStatus());
+            return;
+        }
+
         for (OrderItem item : order.getItems()) {
             ConfirmStockResponse response = inventoryGrpcClient.confirmStock(orderNumber, item.getProductId());
             if (!response.getSuccess()) {
@@ -208,7 +232,7 @@ public class OrderService {
             }
         }
 
-        updateOrderStatus(order, OrderStatus.CONFIRMED, changedBy, "Payment confirmed");
+        updateOrderStatus(order, OrderStatus.PROCESSING, order.getUserId(), "Payment successful - stock confirmed");
 
         orderEventProducer.sendOrderConfirmedEvent(new OrderConfirmedEvent(
                 UUID.randomUUID().toString(),
@@ -219,8 +243,48 @@ public class OrderService {
                 Instant.now(),
                 Instant.now()
         ));
+    }
 
-        return orderMapper.toOrderResponse(order);
+    @Transactional
+    @CacheEvict(value = RedisConfig.CacheNames.ORDER_BY_ID, allEntries = true)
+    public void handlePaymentFailure(String orderNumber, String reason) {
+        log.info("Handling payment failure for order {}: {}", orderNumber, reason);
+
+        Order order = findOrderByNumber(orderNumber);
+
+        if (order.getStatus() == OrderStatus.CANCELLED ||
+                order.getStatus() == OrderStatus.DELIVERED ||
+                order.getStatus() == OrderStatus.REFUNDED) {
+            log.info("Order {} already in status {}, ignoring payment failure", orderNumber, order.getStatus());
+            return;
+        }
+
+        for (OrderItem item : order.getItems()) {
+            try {
+                ReleaseStockResponse response = inventoryGrpcClient.releaseStock(orderNumber, item.getProductId());
+                if (!response.getSuccess()) {
+                    log.warn("Failed to release stock for productId {} on order {}: {}",
+                            item.getProductId(), orderNumber, response.getMessage());
+                }
+            } catch (Exception e) {
+                log.warn("Error releasing stock for productId {} on order {}: {}",
+                        item.getProductId(), orderNumber, e.getMessage());
+            }
+        }
+
+        order.setCancelledReason(reason);
+        updateOrderStatus(order, OrderStatus.CANCELLED, order.getUserId(), "Payment failed: " + reason);
+
+        orderEventProducer.sendOrderCancelledEvent(new OrderCancelledEvent(
+                UUID.randomUUID().toString(),
+                "ORDER_CANCELLED",
+                order.getId(),
+                order.getOrderNumber(),
+                order.getUserId(),
+                reason,
+                Instant.now(),
+                Instant.now()
+        ));
     }
 
     @Transactional

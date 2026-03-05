@@ -56,4 +56,7 @@ public class UpdateProductRequest {
     private Boolean isFeatured;
 
     private Map<String, Object> attributes;
+
+    @Min(value = 0, message = "Stock cannot be negative")
+    private Integer stock;
 }

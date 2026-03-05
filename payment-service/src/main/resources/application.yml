@@ -92,6 +92,10 @@ kapitalbank:
   key-path: ${kapitalbank.key-path:src/main/resources/certificates/merchant.key}
   callback-base-url: ${KAPITALBANK_CALLBACK_BASE_URL:http://localhost:8086/api/v1}
 
+services:
+  order-service:
+    url: ${ORDER_SERVICE_URL:http://localhost:8085/api/v1}
+
 frontend:
   success-url: ${FRONTEND_SUCCESS_URL:http://localhost:3000/payment/success}
   cancel-url: ${FRONTEND_CANCEL_URL:http://localhost:3000/payment/cancel}

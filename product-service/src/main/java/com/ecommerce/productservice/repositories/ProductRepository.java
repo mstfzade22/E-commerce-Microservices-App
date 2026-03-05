@@ -14,7 +14,11 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     Optional<Product> findBySlug(String slug);
 
+    Optional<Product> findBySlugAndIsActiveTrue(String slug);
+
     Optional<Product> findBySku(String sku);
+
+    Optional<Product> findByIdAndIsActiveTrue(Long id);
 
     Page<Product> findByIsActiveTrue(Pageable pageable);
 
@@ -28,12 +32,16 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     boolean existsBySlug(String slug);
 
+    boolean existsBySlugAndIsActiveTrue(String slug);
+
+    boolean existsBySkuAndIsActiveTrue(String sku);
+
     boolean existsBySlugAndIdNot(String slug, Long id);
 
     boolean existsBySkuAndIdNot(String sku, Long id);
 
     Long countByCategoryId(Long categoryId);
 
-    Page<Product> findByNameContainingIgnoreCase(String keyword, Pageable pageable);
+    Page<Product> findByNameContainingIgnoreCaseAndIsActiveTrue(String keyword, Pageable pageable);
 
 }

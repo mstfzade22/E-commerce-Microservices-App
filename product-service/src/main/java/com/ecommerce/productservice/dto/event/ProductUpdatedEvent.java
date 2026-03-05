@@ -12,6 +12,7 @@ public record ProductUpdatedEvent(
         BigDecimal price,
         Long categoryId,
         Boolean isActive,
+        Integer stock,
         Instant updatedAt,
         String eventId,
         Instant timestamp
@@ -24,6 +25,7 @@ public record ProductUpdatedEvent(
             BigDecimal price,
             Long categoryId,
             Boolean isActive,
+            Integer stock,
             Instant updatedAt
     ) {
         return new ProductUpdatedEvent(
@@ -34,6 +36,7 @@ public record ProductUpdatedEvent(
                 price,
                 categoryId,
                 isActive,
+                stock,
                 updatedAt,
                 UUID.randomUUID().toString(),
                 Instant.now()

@@ -40,6 +40,7 @@ public class InventoryService {
                 .lowStockThreshold(10)
                 .build();
 
+        inventory.updateStatusBeforeSave();
         inventoryRepository.save(inventory);
         eventProducer.sendStockUpdatedEvent(inventory);
     }
@@ -60,6 +61,29 @@ public class InventoryService {
         if (request.quantity() != null) inventory.setQuantity(request.quantity());
         if (request.lowStockThreshold() != null) inventory.setLowStockThreshold(request.lowStockThreshold());
 
+        inventory.updateStatusBeforeSave();
+        Inventory saved = inventoryRepository.save(inventory);
+        eventProducer.sendStockUpdatedEvent(saved);
+
+        return inventoryMapper.toResponse(saved);
+    }
+
+    @Transactional
+    @CachePut(value = RedisConfig.CacheNames.INVENTORY, key = "#productId")
+    public InventoryResponse updateOrCreateStock(Long productId, Integer quantity) {
+        Inventory inventory = inventoryRepository.findByProductId(productId)
+                .orElseGet(() -> {
+                    log.info("No inventory found for product {}. Creating new inventory record.", productId);
+                    return Inventory.builder()
+                            .productId(productId)
+                            .quantity(0)
+                            .reservedQuantity(0)
+                            .lowStockThreshold(10)
+                            .build();
+                });
+
+        inventory.setQuantity(quantity);
+        inventory.updateStatusBeforeSave();
         Inventory saved = inventoryRepository.save(inventory);
         eventProducer.sendStockUpdatedEvent(saved);
 

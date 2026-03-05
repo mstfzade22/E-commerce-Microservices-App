@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -43,11 +44,11 @@ public class ProductService {
     public ProductCreateResponse createProduct(CreateProductRequest request) {
         log.info("Creating product with slug: {}", request.slug());
 
-        if (productRepository.existsBySlug(request.slug())) {
+        if (productRepository.existsBySlugAndIsActiveTrue(request.slug())) {
             throw new DuplicateResourceException("Product", "slug", request.slug());
         }
 
-        if (productRepository.existsBySku(request.sku())) {
+        if (productRepository.existsBySkuAndIsActiveTrue(request.sku())) {
             throw new DuplicateResourceException("Product", "sku", request.sku());
         }
 
@@ -108,10 +109,14 @@ public class ProductService {
 
         productMapper.updateEntityFromRequest(request, product);
 
+        if (request.getStock() != null) {
+            product.setStockStatus(StockStatus.fromQuantity(request.getStock()));
+        }
+
         Product updatedProduct = productRepository.save(product);
         log.info("Product updated successfully with ID: {}", updatedProduct.getId());
 
-        kafkaProducerService.publishProductUpdatedEvent(updatedProduct);
+        kafkaProducerService.publishProductUpdatedEvent(updatedProduct, request.getStock());
 
         boolean priceChanged = (request.getPrice() != null && !request.getPrice().equals(oldPrice)) ||
                 (request.getDiscountPrice() != null && !request.getDiscountPrice().equals(oldDiscountPrice));
@@ -124,7 +129,10 @@ public class ProductService {
     }
 
     @Transactional
-    @CacheEvict(value = RedisConfig.CacheNames.PRODUCT_BY_ID, key = "#id")
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CacheNames.PRODUCT_BY_ID, key = "#id"),
+            @CacheEvict(value = RedisConfig.CacheNames.PRODUCT_BY_SLUG, allEntries = true)
+    })
     public void deleteProduct(Long id) {
         log.info("Deleting product with ID: {}", id);
 
@@ -147,7 +155,7 @@ public class ProductService {
     public ProductDetailResponse getProductById(Long id) {
         log.info("Fetching product with ID: {}", id);
 
-        Product product = productRepository.findById(id)
+        Product product = productRepository.findByIdAndIsActiveTrue(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
 
         return productMapper.toDetailResponse(product);
@@ -158,7 +166,7 @@ public class ProductService {
     public ProductDetailResponse getProductBySlug(String slug) {
         log.info("Fetching product with slug: {}", slug);
 
-        Product product = productRepository.findBySlug(slug)
+        Product product = productRepository.findBySlugAndIsActiveTrue(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "slug", slug));
 
         return productMapper.toDetailResponse(product);
@@ -200,7 +208,7 @@ public class ProductService {
     public PagedResponse<ProductSummaryResponse> searchProducts(String keyword, Pageable pageable) {
         log.info("Searching products with keyword: '{}', page: {}, size: {}", keyword, pageable.getPageNumber(), pageable.getPageSize());
 
-        Page<Product> productPage = productRepository.findByNameContainingIgnoreCase(keyword, pageable);
+        Page<Product> productPage = productRepository.findByNameContainingIgnoreCaseAndIsActiveTrue(keyword, pageable);
 
         return PagedResponse.from(productPage, productMapper::toSummaryResponse);
     }

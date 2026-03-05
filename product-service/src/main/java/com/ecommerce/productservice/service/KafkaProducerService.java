@@ -39,7 +39,7 @@ public class KafkaProducerService {
         sendEvent(KafkaTopicConfig.PRODUCT_EVENTS_TOPIC, product.getId().toString(), event, "ProductCreatedEvent");
     }
 
-    public void publishProductUpdatedEvent(Product product) {
+    public void publishProductUpdatedEvent(Product product, Integer stock) {
         ProductUpdatedEvent event = ProductUpdatedEvent.of(
                 product.getId(),
                 product.getName(),
@@ -48,6 +48,7 @@ public class KafkaProducerService {
                 product.getPrice(),
                 product.getCategory() != null ? product.getCategory().getId() : null,
                 product.getIsActive(),
+                stock,
                 product.getUpdatedAt()
         );
 
