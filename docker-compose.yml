@@ -315,13 +315,11 @@ services:
       SPRING_CLOUD_VAULT_TOKEN: root-token
       SPRING_DATA_REDIS_HOST: redis
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAPITALBANK_API_URL: https://tstpg.kapitalbank.az:5443/Exec
+      KAPITALBANK_API_URL: https://txpgtst.kapitalbank.az/api
+      KAPITALBANK_USERNAME: TerminalSys/kapital
+      KAPITALBANK_PASSWORD: kapital123
       KAPITALBANK_CALLBACK_BASE_URL: https://yoursite.com/api/v1
-      KAPITALBANK_CERT_PATH: /app/certificates/merchant.crt
-      KAPITALBANK_KEY_PATH: /app/certificates/merchant.key
       ORDER_SERVICE_URL: http://order-service:8085/api/v1
-    volumes:
-      - ./payment-service/src/main/resources/certificates:/app/certificates:ro
     networks:
       - ecommerce-network
     depends_on:

@@ -34,34 +34,21 @@ public class PaymentCallbackController {
     @Value("${frontend.decline-url}")
     private String frontendDeclineUrl;
 
-    @GetMapping("/approve")
-    @Operation(summary = "Approve callback", description = "Called by Kapital Bank when payment is approved")
-    public ResponseEntity<Void> approveCallback(
-            @RequestParam("ORDERID") String orderId,
-            @RequestParam("SESSIONID") String sessionId) {
-        log.info("Received approve callback: ORDERID={}, SESSIONID={}", orderId, sessionId);
-        String orderNumber = paymentService.handleApproveCallback(orderId, sessionId);
-        return redirect(frontendSuccessUrl + "?order=" + orderNumber);
-    }
+    @GetMapping("/result")
+    @Operation(summary = "Payment result callback", description = "Called by Kapital Bank when payment flow completes")
+    public ResponseEntity<Void> resultCallback(
+            @RequestParam("ID") String orderId,
+            @RequestParam("STATUS") String status) {
+        log.info("Received callback: ID={}, STATUS={}", orderId, status);
+        String orderNumber = paymentService.handleCallback(orderId, status);
 
-    @GetMapping("/cancel")
-    @Operation(summary = "Cancel callback", description = "Called by Kapital Bank when customer cancels payment")
-    public ResponseEntity<Void> cancelCallback(
-            @RequestParam("ORDERID") String orderId,
-            @RequestParam("SESSIONID") String sessionId) {
-        log.info("Received cancel callback: ORDERID={}, SESSIONID={}", orderId, sessionId);
-        String orderNumber = paymentService.handleCancelCallback(orderId, sessionId);
-        return redirect(frontendCancelUrl + "?order=" + orderNumber);
-    }
+        String redirectUrl = switch (status) {
+            case "FullyPaid" -> frontendSuccessUrl + "?order=" + orderNumber;
+            case "Cancelled", "Canceled" -> frontendCancelUrl + "?order=" + orderNumber;
+            default -> frontendDeclineUrl + "?order=" + orderNumber;
+        };
 
-    @GetMapping("/decline")
-    @Operation(summary = "Decline callback", description = "Called by Kapital Bank when payment is declined")
-    public ResponseEntity<Void> declineCallback(
-            @RequestParam("ORDERID") String orderId,
-            @RequestParam("SESSIONID") String sessionId) {
-        log.info("Received decline callback: ORDERID={}, SESSIONID={}", orderId, sessionId);
-        String orderNumber = paymentService.handleDeclineCallback(orderId, sessionId);
-        return redirect(frontendDeclineUrl + "?order=" + orderNumber);
+        return redirect(redirectUrl);
     }
 
     private ResponseEntity<Void> redirect(String url) {

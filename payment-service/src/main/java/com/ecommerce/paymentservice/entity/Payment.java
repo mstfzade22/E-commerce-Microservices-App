@@ -48,8 +48,8 @@ public class Payment {
     @Column(name = "kapital_order_id", unique = true, length = 50)
     private String kapitalOrderId;
 
-    @Column(name = "kapital_session_id", length = 100)
-    private String kapitalSessionId;
+    @Column(name = "kapital_password", length = 100)
+    private String kapitalPassword;
 
     @Column(name = "payment_url", length = 500)
     private String paymentUrl;

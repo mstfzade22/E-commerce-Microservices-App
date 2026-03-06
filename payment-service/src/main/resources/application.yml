@@ -83,13 +83,11 @@ jwt:
     secret: ${jwt.access.secret}
 
 kapitalbank:
-  api-url: ${KAPITALBANK_API_URL:https://tstpg.kapitalbank.az:5443/Exec}
-  payment-page-url: ${KAPITALBANK_PAYMENT_PAGE_URL:https://tstpg.kapitalbank.az/index.jsp}
-  merchant-id: ${kapitalbank.merchant-id:E1000010}
-  currency: "944"
-  language: "EN"
-  cert-path: ${kapitalbank.cert-path:src/main/resources/certificates/merchant.crt}
-  key-path: ${kapitalbank.key-path:src/main/resources/certificates/merchant.key}
+  api-url: ${KAPITALBANK_API_URL:https://txpgtst.kapitalbank.az/api}
+  username: ${KAPITALBANK_USERNAME:TerminalSys/kapital}
+  password: ${KAPITALBANK_PASSWORD:kapital123}
+  currency: "AZN"
+  language: "az"
   callback-base-url: ${KAPITALBANK_CALLBACK_BASE_URL:http://localhost:8086/api/v1}
 
 services:

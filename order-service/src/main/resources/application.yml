@@ -83,6 +83,8 @@ jwt:
     secret: ${jwt.access.secret}
 
 grpc:
+  server:
+    port: -1
   client:
     product-service:
       address: static://${GRPC_PRODUCT_SERVICE_HOST:localhost}:9090

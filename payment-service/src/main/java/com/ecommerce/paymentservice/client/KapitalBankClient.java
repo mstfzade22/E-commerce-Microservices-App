@@ -3,33 +3,20 @@ package com.ecommerce.paymentservice.client;
 import com.ecommerce.paymentservice.dto.kapitalbank.KapitalBankOrderResponse;
 import com.ecommerce.paymentservice.dto.kapitalbank.KapitalBankRefundResponse;
 import com.ecommerce.paymentservice.dto.kapitalbank.KapitalBankStatusResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.security.KeyFactory;
-import java.security.KeyStore;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -38,8 +25,11 @@ public class KapitalBankClient {
     @Value("${kapitalbank.api-url}")
     private String apiUrl;
 
-    @Value("${kapitalbank.merchant-id}")
-    private String merchantId;
+    @Value("${kapitalbank.username}")
+    private String username;
+
+    @Value("${kapitalbank.password}")
+    private String password;
 
     @Value("${kapitalbank.currency}")
     private String currency;
@@ -47,185 +37,125 @@ public class KapitalBankClient {
     @Value("${kapitalbank.language}")
     private String language;
 
-    @Value("${kapitalbank.cert-path}")
-    private String certPath;
-
-    @Value("${kapitalbank.key-path}")
-    private String keyPath;
-
     private HttpClient httpClient;
+    private ObjectMapper objectMapper;
+    private String basicAuthHeader;
 
     @PostConstruct
     public void init() {
-        try {
-            SSLContext sslContext = buildSslContext();
-            this.httpClient = HttpClient.newBuilder()
-                    .sslContext(sslContext)
-                    .build();
-            log.info("KapitalBankClient initialized with SSL context");
-        } catch (Exception e) {
-            log.warn("Failed to initialize SSL context, using default HttpClient: {}", e.getMessage());
-            this.httpClient = HttpClient.newHttpClient();
-        }
+        this.httpClient = HttpClient.newHttpClient();
+        this.objectMapper = new ObjectMapper();
+        this.basicAuthHeader = "Basic " + Base64.getEncoder()
+                .encodeToString((username + ":" + password).getBytes(StandardCharsets.UTF_8));
+        log.info("KapitalBankClient initialized with Basic Auth for {}", apiUrl);
     }
 
-    public KapitalBankOrderResponse createOrder(BigDecimal amount, String description,
-                                                 String approveUrl, String cancelUrl, String declineUrl) {
-        long amountInMinorUnits = amount.multiply(BigDecimal.valueOf(100)).longValue();
-
-        String xml = """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <TKKPG>
-                  <Request>
-                    <Operation>CreateOrder</Operation>
-                    <Language>%s</Language>
-                    <Order>
-                      <OrderType>Purchase</OrderType>
-                      <Merchant>%s</Merchant>
-                      <Amount>%d</Amount>
-                      <Currency>%s</Currency>
-                      <Description>%s</Description>
-                      <ApproveURL>%s</ApproveURL>
-                      <CancelURL>%s</CancelURL>
-                      <DeclineURL>%s</DeclineURL>
-                    </Order>
-                  </Request>
-                </TKKPG>
-                """.formatted(language, merchantId, amountInMinorUnits, currency,
-                escapeXml(description), approveUrl, cancelUrl, declineUrl);
-
-        Document doc = sendRequest(xml);
-        Element response = getElement(doc.getDocumentElement(), "Response");
-        String status = getTextContent(response, "Status");
-        Element order = getElement(response, "Order");
-
-        return new KapitalBankOrderResponse(
-                status,
-                getTextContent(order, "OrderID"),
-                getTextContent(order, "SessionID"),
-                getTextContent(order, "URL")
+    public KapitalBankOrderResponse createOrder(BigDecimal amount, String description, String redirectUrl) {
+        Map<String, Object> body = Map.of(
+                "order", Map.of(
+                        "typeRid", "Order_SMS",
+                        "amount", amount.toPlainString(),
+                        "currency", currency,
+                        "language", language,
+                        "description", description,
+                        "hppRedirectUrl", redirectUrl
+                )
         );
+
+        String responseBody = sendPostRequest(apiUrl + "/order", body);
+        return parseResponse(responseBody, KapitalBankOrderResponse.class);
     }
 
-    public KapitalBankStatusResponse getOrderStatus(String orderId, String sessionId) {
-        String xml = """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <TKKPG>
-                  <Request>
-                    <Operation>GetOrderStatus</Operation>
-                    <Language>%s</Language>
-                    <Order>
-                      <Merchant>%s</Merchant>
-                      <OrderID>%s</OrderID>
-                    </Order>
-                    <SessionID>%s</SessionID>
-                  </Request>
-                </TKKPG>
-                """.formatted(language, merchantId, orderId, sessionId);
+    public KapitalBankStatusResponse getOrderStatus(String orderId) {
+        String responseBody = sendGetRequest(apiUrl + "/order/" + orderId);
+        return parseResponse(responseBody, KapitalBankStatusResponse.class);
+    }
 
-        Document doc = sendRequest(xml);
-        Element response = getElement(doc.getDocumentElement(), "Response");
-        String status = getTextContent(response, "Status");
-        Element order = getElement(response, "Order");
-
-        return new KapitalBankStatusResponse(
-                status,
-                getTextContent(order, "OrderStatus"),
-                getTextContent(order, "OrderID"),
-                sessionId
+    public KapitalBankRefundResponse refundOrder(String orderId, BigDecimal amount) {
+        Map<String, Object> body = Map.of(
+                "tran", Map.of(
+                        "phase", "Single",
+                        "type", "Refund",
+                        "amount", amount.toPlainString()
+                )
         );
+
+        String responseBody = sendPostRequest(apiUrl + "/order/" + orderId + "/exec-tran", body);
+        return parseResponse(responseBody, KapitalBankRefundResponse.class);
     }
 
-    public KapitalBankRefundResponse reverseOrder(String orderId, String sessionId, String description) {
-        String xml = """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <TKKPG>
-                  <Request>
-                    <Operation>Reverse</Operation>
-                    <Language>%s</Language>
-                    <Order>
-                      <Merchant>%s</Merchant>
-                      <OrderID>%s</OrderID>
-                    </Order>
-                    <SessionID>%s</SessionID>
-                    <Description>%s</Description>
-                  </Request>
-                </TKKPG>
-                """.formatted(language, merchantId, orderId, sessionId, escapeXml(description));
+    public KapitalBankRefundResponse reverseOrder(String orderId) {
+        Map<String, Object> body = Map.of(
+                "tran", Map.of(
+                        "phase", "Single",
+                        "voidKind", "Full"
+                )
+        );
 
-        Document doc = sendRequest(xml);
-        Element response = getElement(doc.getDocumentElement(), "Response");
-        String status = getTextContent(response, "Status");
-
-        return new KapitalBankRefundResponse(status, orderId);
+        String responseBody = sendPostRequest(apiUrl + "/order/" + orderId + "/exec-tran", body);
+        return parseResponse(responseBody, KapitalBankRefundResponse.class);
     }
 
-    private Document sendRequest(String xml) {
+    private String sendPostRequest(String url, Object body) {
         try {
+            String jsonBody = objectMapper.writeValueAsString(body);
+            log.debug("Sending POST to {}: {}", url, jsonBody);
+
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(apiUrl))
-                    .header("Content-Type", "application/xml; charset=UTF-8")
-                    .POST(HttpRequest.BodyPublishers.ofString(xml, StandardCharsets.UTF_8))
+                    .uri(URI.create(url))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", basicAuthHeader)
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            log.debug("Kapital Bank response status: {}", response.statusCode());
+            log.debug("Kapital Bank response status: {}, body: {}", response.statusCode(), response.body());
 
-            return parseXml(response.body());
+            if (response.statusCode() >= 400) {
+                throw new RuntimeException("Kapital Bank returned HTTP " + response.statusCode() + ": " + response.body());
+            }
+
+            return response.body();
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("Failed to communicate with Kapital Bank: {} - {}", e.getClass().getName(), e.getMessage(), e);
-            throw new RuntimeException("Kapital Bank communication error: " + e.getClass().getName() + " - " + e.getMessage(), e);
+            log.error("Failed to communicate with Kapital Bank: {}", e.getMessage(), e);
+            throw new RuntimeException("Kapital Bank communication error: " + e.getMessage(), e);
         }
     }
 
-    private SSLContext buildSslContext() throws Exception {
-        CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-        X509Certificate certificate = (X509Certificate) certFactory.generateCertificate(
-                new ByteArrayInputStream(Files.readAllBytes(Path.of(certPath))));
+    private String sendGetRequest(String url) {
+        try {
+            log.debug("Sending GET to {}", url);
 
-        String keyContent = Files.readString(Path.of(keyPath))
-                .replace("-----BEGIN PRIVATE KEY-----", "")
-                .replace("-----END PRIVATE KEY-----", "")
-                .replaceAll("\\s", "");
-        byte[] keyBytes = Base64.getDecoder().decode(keyContent);
-        RSAPrivateKey privateKey = (RSAPrivateKey) KeyFactory.getInstance("RSA")
-                .generatePrivate(new PKCS8EncodedKeySpec(keyBytes));
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("Authorization", basicAuthHeader)
+                    .GET()
+                    .build();
 
-        KeyStore keyStore = KeyStore.getInstance("PKCS12");
-        keyStore.load(null, null);
-        keyStore.setKeyEntry("merchant", privateKey, new char[0], new java.security.cert.Certificate[]{certificate});
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            log.debug("Kapital Bank response status: {}, body: {}", response.statusCode(), response.body());
 
-        KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-        kmf.init(keyStore, new char[0]);
+            if (response.statusCode() >= 400) {
+                throw new RuntimeException("Kapital Bank returned HTTP " + response.statusCode() + ": " + response.body());
+            }
 
-        SSLContext sslContext = SSLContext.getInstance("TLS");
-        sslContext.init(kmf.getKeyManagers(), null, null);
-        return sslContext;
+            return response.body();
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to communicate with Kapital Bank: {}", e.getMessage(), e);
+            throw new RuntimeException("Kapital Bank communication error: " + e.getMessage(), e);
+        }
     }
 
-    private Document parseXml(String xml) throws Exception {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-        DocumentBuilder builder = factory.newDocumentBuilder();
-        return builder.parse(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
-    }
-
-    private Element getElement(Element parent, String tagName) {
-        return (Element) parent.getElementsByTagName(tagName).item(0);
-    }
-
-    private String getTextContent(Element parent, String tagName) {
-        var nodeList = parent.getElementsByTagName(tagName);
-        if (nodeList.getLength() == 0) return null;
-        return nodeList.item(0).getTextContent();
-    }
-
-    private String escapeXml(String input) {
-        if (input == null) return "";
-        return input.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&apos;");
+    private <T> T parseResponse(String responseBody, Class<T> type) {
+        try {
+            return objectMapper.readValue(responseBody, type);
+        } catch (Exception e) {
+            log.error("Failed to parse Kapital Bank response: {}", responseBody, e);
+            throw new RuntimeException("Failed to parse Kapital Bank response: " + e.getMessage(), e);
+        }
     }
 }

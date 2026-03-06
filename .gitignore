@@ -73,8 +73,11 @@ docs/
 # Vault
 vault-init.sh
 
+# Markdown (except root README)
+*.md
+!README.md
+
 # Misc
 *.bak
 *.orig
-*.md
 run.txt
