@@ -134,6 +134,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return requestUri.contains("/auth/register") ||
                 requestUri.contains("/auth/login") ||
                 requestUri.contains("/auth/refresh") ||
+                requestUri.contains("/internal/") ||
                 requestUri.contains("/actuator/health") ||
                 requestUri.contains("/actuator/info") ||
                 requestUri.contains("/v3/api-docs") ||

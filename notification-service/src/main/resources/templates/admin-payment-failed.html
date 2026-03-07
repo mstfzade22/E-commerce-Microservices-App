@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #c62828;">Payment Failure Alert</h2>
+    <p>A payment has failed and may require attention.</p>
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+        <tr>
+            <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Order Number</td>
+            <td style="padding: 8px; border: 1px solid #ddd;" th:text="${orderNumber}">ORD-XXX</td>
+        </tr>
+        <tr th:if="${reason != null}">
+            <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Reason</td>
+            <td style="padding: 8px; border: 1px solid #ddd;" th:text="${reason}">N/A</td>
+        </tr>
+    </table>
+    <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+    <p style="color: #888; font-size: 12px;">E-Commerce Admin Notification</p>
+</body>
+</html>

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #1565c0;">Order Shipped</h2>
+    <p>Hi <span th:text="${firstName}">Customer</span>,</p>
+    <p>Your order <strong th:text="${orderNumber}">ORD-XXX</strong> has been shipped!</p>
+    <p>You will receive another notification once it has been delivered.</p>
+    <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+    <p style="color: #888; font-size: 12px;">Thank you for shopping with us!</p>
+</body>
+</html>

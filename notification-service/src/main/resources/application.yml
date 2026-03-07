@@ -1,0 +1,95 @@
+spring:
+  application:
+    name: notification-service
+
+  config:
+    import: "vault://"
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+  datasource:
+    url: ${spring.datasource.url}
+    username: ${spring.datasource.username}
+    password: ${spring.datasource.password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: 6379
+      timeout: 3000ms
+      password: ${spring.data.redis.password}
+
+  cloud:
+    vault:
+      uri: ${SPRING_CLOUD_VAULT_URI:http://localhost:8200}
+      token: ${SPRING_CLOUD_VAULT_TOKEN:root-token}
+      enabled: true
+      fail-fast: true
+      kv:
+        enabled: true
+        backend: secret
+        default-context: notification-service
+        backend-version: 2
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+
+  mail:
+    host: ${spring.mail.host}
+    port: ${spring.mail.port}
+    username: ${spring.mail.username}
+    password: ${spring.mail.password}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  thymeleaf:
+    prefix: classpath:/templates/
+    suffix: .html
+
+server:
+  port: 8087
+  servlet:
+    context-path: /api/v1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+  health:
+    mail:
+      enabled: false
+
+notification:
+  from-email: ${spring.mail.username}
+  admin-email: ${admin.email:admin@yourdomain.com}
+
+services:
+  user-service:
+    url: ${USER_SERVICE_URL:http://localhost:8081/api/v1}
+
+logging:
+  level:
+    root: INFO
+    com.ecommerce.notificationservice: DEBUG

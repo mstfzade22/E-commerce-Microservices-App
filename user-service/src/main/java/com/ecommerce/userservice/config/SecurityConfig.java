@@ -57,6 +57,7 @@ public class SecurityConfig {
                                 "/auth/register",
                                 "/auth/login",
                                 "/auth/refresh",
+                                "/internal/**",
                                 "/actuator/health",
                                 "/actuator/info",
                                 "/v3/api-docs/**",

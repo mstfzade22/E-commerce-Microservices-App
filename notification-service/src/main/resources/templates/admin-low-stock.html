@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #e65100;">Low Stock Alert</h2>
+    <p>A product is running low on stock and may need restocking.</p>
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+        <tr>
+            <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Product ID</td>
+            <td style="padding: 8px; border: 1px solid #ddd;" th:text="${productId}">0</td>
+        </tr>
+        <tr>
+            <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Available Quantity</td>
+            <td style="padding: 8px; border: 1px solid #ddd;" th:text="${availableQuantity}">0</td>
+        </tr>
+        <tr>
+            <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Threshold</td>
+            <td style="padding: 8px; border: 1px solid #ddd;" th:text="${threshold}">10</td>
+        </tr>
+    </table>
+    <p>Please restock this product as soon as possible.</p>
+    <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+    <p style="color: #888; font-size: 12px;">E-Commerce Admin Notification</p>
+</body>
+</html>

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #c62828;">Payment Failed</h2>
+    <p>Hi <span th:text="${firstName}">Customer</span>,</p>
+    <p>Your payment for order <strong th:text="${orderNumber}">ORD-XXX</strong> has failed.</p>
+    <p th:if="${reason != null}">Reason: <span th:text="${reason}">N/A</span></p>
+    <p>Please try again or use a different payment method.</p>
+    <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+    <p style="color: #888; font-size: 12px;">If you need help, please contact our support team.</p>
+</body>
+</html>

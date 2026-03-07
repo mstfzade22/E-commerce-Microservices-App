@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #1565c0;">Refund Processed</h2>
+    <p>Hi <span th:text="${firstName}">Customer</span>,</p>
+    <p>A refund of <strong th:text="'AZN ' + ${amount}">AZN 0.00</strong> for order
+        <strong th:text="${orderNumber}">ORD-XXX</strong> has been processed.</p>
+    <p>The refund should appear in your account within a few business days.</p>
+    <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+    <p style="color: #888; font-size: 12px;">Thank you for your patience.</p>
+</body>
+</html>
