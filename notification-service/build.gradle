@@ -41,6 +41,9 @@ dependencies {
     // Spring Cloud
     implementation 'org.springframework.cloud:spring-cloud-starter-vault-config'
 
+    // Swagger
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14'
+
     // Jackson
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 

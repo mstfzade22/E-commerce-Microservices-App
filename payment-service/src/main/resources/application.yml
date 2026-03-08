@@ -82,6 +82,9 @@ jwt:
   access:
     secret: ${jwt.access.secret}
 
+payment:
+  test-mode: ${PAYMENT_TEST_MODE:true}
+
 kapitalbank:
   api-url: ${KAPITALBANK_API_URL:https://txpgtst.kapitalbank.az/api}
   username: ${KAPITALBANK_USERNAME:TerminalSys/kapital}

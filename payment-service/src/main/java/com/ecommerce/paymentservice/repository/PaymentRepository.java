@@ -22,4 +22,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     Page<Payment> findAllByStatusOrderByCreatedAtDesc(PaymentStatus status, Pageable pageable);
 
     boolean existsByOrderNumberAndStatusNot(String orderNumber, PaymentStatus status);
+
+    boolean existsByOrderNumberAndStatusIn(String orderNumber, java.util.Collection<PaymentStatus> statuses);
 }

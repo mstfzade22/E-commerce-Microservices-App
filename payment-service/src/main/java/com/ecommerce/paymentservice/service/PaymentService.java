@@ -52,6 +52,9 @@ public class PaymentService {
     @Value("${kapitalbank.callback-base-url}")
     private String callbackBaseUrl;
 
+    @Value("${payment.test-mode:false}")
+    private boolean testMode;
+
     public PaymentService(PaymentRepository paymentRepository,
                           PaymentStatusHistoryRepository statusHistoryRepository,
                           PaymentMapper paymentMapper,
@@ -76,9 +79,19 @@ public class PaymentService {
                     "Order " + request.orderNumber() + " is in status " + orderStatus + ". Only CONFIRMED orders can be paid.");
         }
 
-        if (paymentRepository.existsByOrderNumberAndStatusNot(request.orderNumber(), PaymentStatus.ERROR)) {
+        if (paymentRepository.existsByOrderNumberAndStatusIn(request.orderNumber(),
+                List.of(PaymentStatus.APPROVED, PaymentStatus.PROCESSING, PaymentStatus.REFUNDED))) {
             throw new PaymentAlreadyExistsException("Payment already exists for order: " + request.orderNumber());
         }
+
+        // Mark any previous stale/failed payments as ERROR so a new one can be created
+        paymentRepository.findByOrderNumber(request.orderNumber()).ifPresent(existing -> {
+            if (existing.getStatus() == PaymentStatus.INITIATED
+                    || existing.getStatus() == PaymentStatus.DECLINED
+                    || existing.getStatus() == PaymentStatus.CANCELLED) {
+                updatePaymentStatus(existing, PaymentStatus.ERROR, "Superseded by new payment attempt");
+            }
+        });
 
         String description = "Order " + request.orderNumber();
         String redirectUrl = callbackBaseUrl + "/payments/callback/result";
@@ -145,33 +158,38 @@ public class PaymentService {
     }
 
     private String handleApproveCallback(Payment payment, String orderId) {
-        KapitalBankStatusResponse statusResponse;
-        try {
-            statusResponse = kapitalBankClient.getOrderStatus(orderId);
-        } catch (Exception e) {
-            log.error("Failed to verify payment status for Kapital order {}: {}", orderId, e.getMessage());
-            updatePaymentStatus(payment, PaymentStatus.ERROR, "Failed to verify payment: " + e.getMessage());
-            return payment.getOrderNumber();
-        }
+        if (!testMode) {
+            KapitalBankStatusResponse statusResponse;
+            try {
+                statusResponse = kapitalBankClient.getOrderStatus(orderId);
+            } catch (Exception e) {
+                log.error("Failed to verify payment status for Kapital order {}: {}", orderId, e.getMessage());
+                updatePaymentStatus(payment, PaymentStatus.ERROR, "Failed to verify payment: " + e.getMessage());
+                return payment.getOrderNumber();
+            }
 
-        String bankStatus = statusResponse.order().status();
-        if ("FullyPaid".equals(bankStatus)) {
-            updatePaymentStatus(payment, PaymentStatus.APPROVED, "Payment approved by bank");
-
-            paymentEventProducer.sendPaymentSuccessEvent(new PaymentSuccessEvent(
-                    UUID.randomUUID().toString(),
-                    "PAYMENT_SUCCESS",
-                    payment.getId(),
-                    payment.getOrderNumber(),
-                    payment.getUserId(),
-                    payment.getAmount(),
-                    payment.getKapitalOrderId(),
-                    Instant.now(),
-                    Instant.now()
-            ));
+            String bankStatus = statusResponse.order().status();
+            if (!"FullyPaid".equals(bankStatus)) {
+                updatePaymentStatus(payment, PaymentStatus.ERROR, "Unexpected status from bank: " + bankStatus);
+                return payment.getOrderNumber();
+            }
         } else {
-            updatePaymentStatus(payment, PaymentStatus.ERROR, "Unexpected status from bank: " + bankStatus);
+            log.warn("TEST MODE: Skipping Kapital Bank verification for order {}", orderId);
         }
+
+        updatePaymentStatus(payment, PaymentStatus.APPROVED, "Payment approved by bank");
+
+        paymentEventProducer.sendPaymentSuccessEvent(new PaymentSuccessEvent(
+                UUID.randomUUID().toString(),
+                "PAYMENT_SUCCESS",
+                payment.getId(),
+                payment.getOrderNumber(),
+                payment.getUserId(),
+                payment.getAmount(),
+                payment.getKapitalOrderId(),
+                Instant.now(),
+                Instant.now()
+        ));
 
         return payment.getOrderNumber();
     }
@@ -195,11 +213,15 @@ public class PaymentService {
 
     private String handleDeclineCallback(Payment payment, String orderId) {
         String reason = "Payment declined";
-        try {
-            KapitalBankStatusResponse statusResponse = kapitalBankClient.getOrderStatus(orderId);
-            reason = "Payment declined: " + statusResponse.order().status();
-        } catch (Exception e) {
-            log.warn("Failed to get decline details for Kapital order {}: {}", orderId, e.getMessage());
+        if (!testMode) {
+            try {
+                KapitalBankStatusResponse statusResponse = kapitalBankClient.getOrderStatus(orderId);
+                reason = "Payment declined: " + statusResponse.order().status();
+            } catch (Exception e) {
+                log.warn("Failed to get decline details for Kapital order {}: {}", orderId, e.getMessage());
+            }
+        } else {
+            log.warn("TEST MODE: Skipping Kapital Bank status check for declined order {}", orderId);
         }
 
         updatePaymentStatus(payment, PaymentStatus.DECLINED, reason);

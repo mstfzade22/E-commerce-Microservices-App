@@ -156,11 +156,7 @@ public class OrderService {
         Order savedOrder = orderRepository.save(order);
         log.info("Order {} created successfully with {} items", orderNumber, savedOrder.getItems().size());
 
-        try {
-            cartServiceClient.clearCart(accessToken);
-        } catch (Exception e) {
-            log.warn("Failed to clear cart for user {} after order creation: {}", userId, e.getMessage());
-        }
+        // Cart is cleared by cart-service upon receiving PAYMENT_SUCCESS event
 
         List<OrderCreatedEvent.OrderEventItem> eventItems = savedOrder.getItems().stream()
                 .map(item -> new OrderCreatedEvent.OrderEventItem(
@@ -476,8 +472,8 @@ public class OrderService {
 
     private String generateOrderNumber() {
         String datePart = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        long todayCount = orderRepository.countByCreatedAtToday() + 1;
-        return String.format("ORD-%s-%03d", datePart, todayCount);
+        String uniquePart = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        return String.format("ORD-%s-%s", datePart, uniquePart);
     }
 
     private void releaseReservedStock(String orderNumber, List<Long> reservedProductIds) {
