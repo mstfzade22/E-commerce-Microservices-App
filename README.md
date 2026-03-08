@@ -9,15 +9,15 @@ A cloud-native e-commerce platform built with microservices architecture using S
                               │   Frontend   │
                               └──────┬───────┘
                                      │
-         ┌───────────┬───────────┬───┴────┬───────────┬──────────────┐
-         ▼           ▼           ▼        ▼           ▼              ▼
-  ┌─────────────┐┌──────────┐┌────────┐┌───────┐┌──────────┐┌────────────┐
-  │user-service ││ product  ││  cart  ││ order ││ payment  ││ inventory  │
-  │   :8081     ││ :8082    ││ :8084  ││ :8085 ││  :8086   ││   :8083    │
-  │             ││ gRPC:9090││        ││       ││          ││ gRPC:9091  │
-  └──────┬──────┘└────┬─────┘└───┬────┘└───┬───┘└────┬─────┘└─────┬─────┘
-         │            │          │         │         │             │
-         │       ┌────┴──────────┴─────────┴─────────┴─────────────┘
+         ┌───────────┬───────────┬───┴────┬───────────┬──────────────┬──────────────┐
+         ▼           ▼           ▼        ▼           ▼              ▼              ▼
+  ┌─────────────┐┌──────────┐┌────────┐┌───────┐┌──────────┐┌────────────┐┌──────────────┐
+  │user-service ││ product  ││  cart  ││ order ││ payment  ││ inventory  ││ notification │
+  │   :8081     ││ :8082    ││ :8084  ││ :8085 ││  :8086   ││   :8083    ││    :8087     │
+  │             ││ gRPC:9090││        ││       ││          ││ gRPC:9091  ││              │
+  └──────┬──────┘└────┬─────┘└───┬────┘└───┬───┘└────┬─────┘└─────┬─────┘└──────┬───────┘
+         │            │          │         │         │             │             │
+         │       ┌────┴──────────┴─────────┴─────────┴─────────────┴─────────────┘
          │       │                  Apache Kafka
          │       │    product-events │ inventory-events │ order-events │ payment-events
          │       └──────────────────────────────────────────────────────
@@ -28,6 +28,25 @@ A cloud-native e-commerce platform built with microservices architecture using S
     └─────────┘  └─────────┘  └───────┘  └───────┘  └─────────────┘
 ```
 
+## Key Features
+
+- **Event-driven architecture** with Apache Kafka for asynchronous inter-service communication
+- **Synchronous communication** via gRPC (product/inventory lookups) and REST (cart/order operations)
+- **Real-time stock validation** when adding items to cart using gRPC calls
+- **Stock reservation system** with reserve/confirm/release lifecycle tied to order and payment status
+- **Kapital Bank payment integration** with hosted payment page, callback handling, and auto-refund on order cancellation
+- **Payment test mode** for local development without real bank credentials
+- **Smart cart clearing** -- cart is only cleared after successful payment, not at order creation
+- **JWT authentication** with HttpOnly cookies, refresh token rotation, and Redis-based session denylist
+- **Role-based access control** (CUSTOMER, STORE, ADMIN) across all services
+- **Per-service databases** with PostgreSQL (database-per-service pattern)
+- **Redis caching** with service-specific TTLs tuned by data volatility
+- **Email notifications** via Kafka events with Thymeleaf templates and retry logic
+- **MinIO object storage** for product image uploads (S3-compatible)
+- **HashiCorp Vault** for centralized secret management (KV v2)
+- **Swagger UI** on every service for API documentation
+- **Dockerized** infrastructure and services with health checks and dependency ordering
+
 ## Services
 
 | Service | Port | Description |
@@ -37,13 +56,14 @@ A cloud-native e-commerce platform built with microservices architecture using S
 | **inventory-service** | 8083, 9091 (gRPC) | Stock management, reservations, gRPC server |
 | **cart-service** | 8084 | Shopping cart with real-time stock validation via gRPC |
 | **order-service** | 8085 | Order lifecycle, stock reservation via gRPC, cart integration via REST |
-| **payment-service** | 8086 | Kapital Bank payment gateway integration (JSON REST API) |
+| **payment-service** | 8086 | Kapital Bank payment gateway integration with test mode |
+| **notification-service** | 8087 | Email notifications for order, payment, and inventory events |
 
 ## Technology Stack
 
 | Category | Technology |
 |:---------|:-----------|
-| **Framework** | Spring Boot 4.x, Spring Security, Spring Data JPA |
+| **Framework** | Spring Boot 4.x (3.2.5 for user-service), Spring Security, Spring Data JPA |
 | **Languages** | Java 21 |
 | **API** | REST, gRPC (inter-service), Protocol Buffers |
 | **Database** | PostgreSQL 16 (per-service databases, JSONB columns) |
@@ -52,8 +72,9 @@ A cloud-native e-commerce platform built with microservices architecture using S
 | **Payment** | Kapital Bank E-Commerce API (BasicAuth, JSON) |
 | **Object Storage** | MinIO (S3-compatible, product images) |
 | **Secrets** | HashiCorp Vault (KV v2, per-service secrets) |
-| **Mapping** | MapStruct (DTO/entity conversion) |
-| **Documentation** | OpenAPI 3.0 / Swagger UI |
+| **Email** | Spring Mail + Thymeleaf templates |
+| **Mapping** | MapStruct 1.6.3 (DTO/entity conversion) |
+| **Documentation** | OpenAPI 3.0 / Swagger UI 2.8.14 |
 | **Build** | Gradle 9.3 |
 | **Containerization** | Docker & Docker Compose |
 
@@ -64,7 +85,7 @@ A cloud-native e-commerce platform built with microservices architecture using S
 - Java 21+
 - Docker & Docker Compose
 
-### 1. Clone and Start Infrastructure
+### Option 1: Run Everything in Docker
 
 ```bash
 git clone https://github.com/mstfzade22/E-commerce-Microservices-App.git
@@ -72,23 +93,27 @@ cd E-commerce-Microservices-App
 docker compose up -d
 ```
 
-This starts PostgreSQL, Redis, Kafka, Vault (with auto-init), MinIO, Redpanda Console, and Redis Insight.
+This starts all infrastructure and all 7 microservices with proper dependency ordering and health checks.
 
-### 2. Run Services
+### Option 2: Infrastructure in Docker, Services Locally
 
 ```bash
-# Each in a separate terminal
-cd user-service && ./gradlew bootRun
-cd product-service && ./gradlew bootRun
-cd inventory-service && ./gradlew bootRun
-cd cart-service && ./gradlew bootRun
-cd order-service && ./gradlew bootRun
-cd payment-service && ./gradlew bootRun
+# Start infrastructure only
+docker compose up -d postgres redis kafka vault vault-init minio redpanda-console redis-insight
+
+# Run services in order (each in a separate terminal)
+./user-service/gradlew -p user-service bootRun
+./product-service/gradlew -p product-service bootRun
+./inventory-service/gradlew -p inventory-service bootRun
+./cart-service/gradlew -p cart-service bootRun
+./order-service/gradlew -p order-service bootRun
+./payment-service/gradlew -p payment-service bootRun
+./notification-service/gradlew -p notification-service bootRun
 ```
 
-> The terminal may stay at 80-87% EXECUTING — this is normal for Spring Boot. Check logs for `Started ... Application`.
+> The terminal may stay at 80-87% EXECUTING -- this is normal for Spring Boot. Check logs for `Started ... Application`.
 
-### 3. Create MinIO Bucket (first run only)
+### Create MinIO Bucket (first run only)
 
 ```bash
 # Via MinIO Console at http://localhost:9001 (minioadmin/minioadmin)
@@ -99,6 +124,26 @@ mc alias set local http://localhost:9000 minioadmin minioadmin
 mc mb local/product-images
 mc anonymous set download local/product-images
 ```
+
+## Testing the Payment Flow
+
+Payment test mode is enabled by default (`PAYMENT_TEST_MODE=true`), allowing you to simulate payments without real bank credentials.
+
+```bash
+# 1. Register & login to get JWT cookies
+# 2. Add items to cart
+# 3. Create order:     POST /api/v1/orders
+# 4. Confirm order:    PUT  /api/v1/orders/{orderNumber}/confirm
+# 5. Initiate payment: POST /api/v1/payments/initiate?amount=40
+#    -> Response includes paymentUrl and kapitalOrderId
+# 6. Simulate successful payment via callback:
+curl "http://localhost:8086/api/v1/payments/callback/result?ID={kapitalOrderId}&STATUS=FullyPaid"
+# 7. Verify: payment -> APPROVED, order -> PROCESSING, cart -> cleared
+```
+
+For failed payment simulation, use `STATUS=Declined` or `STATUS=Cancelled` in step 6.
+
+Set `PAYMENT_TEST_MODE=false` for production to enable real Kapital Bank verification.
 
 ## API Endpoints
 
@@ -184,6 +229,14 @@ mc anonymous set download local/product-images
 | `/api/v1/payments/{id}/refund` | POST | ADMIN | Refund payment |
 | `/api/v1/payments/callback/result` | GET | Public | Kapital Bank callback |
 
+### Notification Service (Port 8087)
+
+| Endpoint | Method | Auth | Description |
+|:---------|:-------|:-----|:------------|
+| `/api/v1/notifications` | GET | Auth | User's notifications (paginated) |
+| `/api/v1/notifications/failed` | GET | ADMIN | Failed notifications |
+| `/api/v1/notifications/{id}/retry` | POST | ADMIN | Retry failed notification |
+
 ### gRPC Services
 
 | Service | Port | Methods |
@@ -193,12 +246,12 @@ mc anonymous set download local/product-images
 
 ## Kafka Topics & Events
 
-| Topic | Producer | Consumer | Events |
-|:------|:---------|:---------|:-------|
-| `product-events` | product-service | inventory-service | ProductCreated, ProductUpdated, ProductDeleted, PriceChanged |
-| `inventory-events` | inventory-service | product-service | StockUpdated, StockReserved, StockReleased, StockConfirmed |
-| `order-events` | order-service | payment-service | OrderCreated, OrderConfirmed, OrderCancelled, OrderShipped, OrderDelivered |
-| `payment-events` | payment-service | order-service | PaymentInitiated, PaymentSuccess, PaymentFailed, PaymentRefunded |
+| Topic | Producer | Consumers | Events |
+|:------|:---------|:----------|:-------|
+| `product-events` | product-service | inventory-service, notification-service | ProductCreated, ProductUpdated, ProductDeleted, PriceChanged |
+| `inventory-events` | inventory-service | product-service, cart-service, notification-service | StockUpdated, StockReserved, StockReleased, StockConfirmed |
+| `order-events` | order-service | payment-service, notification-service | OrderCreated, OrderConfirmed, OrderCancelled, OrderShipped, OrderDelivered |
+| `payment-events` | payment-service | order-service, cart-service, notification-service | PaymentInitiated, PaymentSuccess, PaymentFailed, PaymentRefunded |
 
 ## Database Schema
 
@@ -212,6 +265,7 @@ Each service has its own PostgreSQL database:
 | `cart_service_db` | carts, cart_items |
 | `order_service_db` | orders, order_items, order_status_history |
 | `payment_service_db` | payments, payment_status_history |
+| `notification_service_db` | notifications |
 
 ## Security
 
@@ -245,6 +299,7 @@ Each service has its own PostgreSQL database:
 | Cart Service | http://localhost:8084/api/v1/swagger-ui.html |
 | Order Service | http://localhost:8085/api/v1/swagger-ui.html |
 | Payment Service | http://localhost:8086/api/v1/swagger-ui.html |
+| Notification Service | http://localhost:8087/api/v1/swagger-ui.html |
 
 ## Monitoring
 
@@ -262,6 +317,7 @@ Each service has its own PostgreSQL database:
 E-commerce-Microservices-App/
 ├── docker-compose.yml
 ├── init-databases.sql
+├── vault-init.sh
 ├── README.md
 ├── ARCHITECTURE.md
 │
@@ -303,6 +359,7 @@ E-commerce-Microservices-App/
 │   └── src/main/java/.../cartservice/
 │       ├── entity/          # Cart, CartItem (unique per user)
 │       ├── grpc/            # gRPC clients (product, inventory)
+│       ├── kafka/           # Payment, product, inventory consumers
 │       └── service/         # Cart logic with stock validation
 │
 ├── order-service/
@@ -313,13 +370,22 @@ E-commerce-Microservices-App/
 │       ├── kafka/           # Producers & consumers
 │       └── service/         # Order lifecycle, stock reservation
 │
-└── payment-service/
-    └── src/main/java/.../paymentservice/
-        ├── client/          # KapitalBankClient (JSON/BasicAuth), OrderServiceClient
-        ├── controller/      # Payment + callback controllers
-        ├── entity/          # Payment, PaymentStatusHistory
-        ├── kafka/           # Producers & consumers
-        └── service/         # Payment flow, refund logic
+├── payment-service/
+│   └── src/main/java/.../paymentservice/
+│       ├── client/          # KapitalBankClient (JSON/BasicAuth), OrderServiceClient
+│       ├── controller/      # Payment + callback controllers
+│       ├── entity/          # Payment, PaymentStatusHistory
+│       ├── kafka/           # Producers & consumers
+│       └── service/         # Payment flow, refund logic, test mode
+│
+└── notification-service/
+    └── src/main/java/.../notificationservice/
+        ├── client/          # UserServiceClient (REST)
+        ├── controller/      # Notification REST controller
+        ├── entity/          # Notification (with retry tracking)
+        ├── kafka/           # Order, payment, inventory consumers
+        ├── service/         # Notification logic, email service
+        └── resources/templates/  # Thymeleaf email templates
 ```
 
 ## Author
