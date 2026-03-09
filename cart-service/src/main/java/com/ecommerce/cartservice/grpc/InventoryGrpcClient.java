@@ -6,9 +6,13 @@ import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.TimeUnit;
+
 @Service
 @Slf4j
 public class InventoryGrpcClient {
+
+    private static final long TIMEOUT_SECONDS = 5;
 
     @GrpcClient("inventory-service")
     private InventoryGrpcServiceGrpc.InventoryGrpcServiceBlockingStub inventoryStub;
@@ -16,7 +20,7 @@ public class InventoryGrpcClient {
     public CheckStockResponse checkStock(Long productId, int quantity) {
         log.debug("gRPC call: CheckStock(productId={}, quantity={})", productId, quantity);
         try {
-            return inventoryStub.checkStock(
+            return inventoryStub.withDeadlineAfter(TIMEOUT_SECONDS, TimeUnit.SECONDS).checkStock(
                     CheckStockRequest.newBuilder()
                             .setProductId(productId)
                             .setQuantity(quantity)
@@ -34,7 +38,7 @@ public class InventoryGrpcClient {
     public StockInfoResponse getStockInfo(Long productId) {
         log.debug("gRPC call: GetStockInfo({})", productId);
         try {
-            return inventoryStub.getStockInfo(
+            return inventoryStub.withDeadlineAfter(TIMEOUT_SECONDS, TimeUnit.SECONDS).getStockInfo(
                     GetStockInfoRequest.newBuilder().setProductId(productId).build()
             );
         } catch (StatusRuntimeException e) {

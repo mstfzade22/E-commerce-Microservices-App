@@ -44,6 +44,9 @@ public class Inventory {
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;
 
+    @Version
+    private Long version;
+
     @UpdateTimestamp
     @Column(name = "updated_at")
     private Instant updatedAt;

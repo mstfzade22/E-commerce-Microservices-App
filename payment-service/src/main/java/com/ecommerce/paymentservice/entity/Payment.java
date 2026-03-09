@@ -66,6 +66,9 @@ public class Payment {
     @EqualsAndHashCode.Exclude
     private Set<PaymentStatusHistory> statusHistory = new LinkedHashSet<>();
 
+    @Version
+    private Long version;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

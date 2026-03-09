@@ -10,10 +10,13 @@ import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
 public class ProductGrpcClient {
+
+    private static final long TIMEOUT_SECONDS = 5;
 
     @GrpcClient("product-service")
     private ProductGrpcServiceGrpc.ProductGrpcServiceBlockingStub productStub;
@@ -23,7 +26,7 @@ public class ProductGrpcClient {
         GetProductRequest request = GetProductRequest.newBuilder()
                 .setProductId(productId)
                 .build();
-        return productStub.getProduct(request);
+        return productStub.withDeadlineAfter(TIMEOUT_SECONDS, TimeUnit.SECONDS).getProduct(request);
     }
 
     public ProductListResponse getProductsByIds(List<Long> productIds) {
@@ -31,6 +34,6 @@ public class ProductGrpcClient {
         GetProductsByIdsRequest request = GetProductsByIdsRequest.newBuilder()
                 .addAllProductIds(productIds)
                 .build();
-        return productStub.getProductsByIds(request);
+        return productStub.withDeadlineAfter(TIMEOUT_SECONDS, TimeUnit.SECONDS).getProductsByIds(request);
     }
 }

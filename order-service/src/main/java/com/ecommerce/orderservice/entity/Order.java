@@ -87,6 +87,9 @@ public class Order {
     @EqualsAndHashCode.Exclude
     private Set<OrderStatusHistory> statusHistory = new LinkedHashSet<>();
 
+    @Version
+    private Long version;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

@@ -2,9 +2,13 @@ package com.ecommerce.paymentservice.client;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.client.ClientHttpRequestFactories;
+import org.springframework.boot.web.client.ClientHttpRequestFactorySettings;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+
+import java.time.Duration;
 
 import java.util.Map;
 
@@ -15,8 +19,12 @@ public class OrderServiceClient {
     private final RestClient restClient;
 
     public OrderServiceClient(@Value("${services.order-service.url}") String orderServiceUrl) {
+        ClientHttpRequestFactorySettings settings = ClientHttpRequestFactorySettings.DEFAULTS
+                .withConnectTimeout(Duration.ofSeconds(5))
+                .withReadTimeout(Duration.ofSeconds(10));
         this.restClient = RestClient.builder()
                 .baseUrl(orderServiceUrl)
+                .requestFactory(ClientHttpRequestFactories.get(settings))
                 .build();
     }
 

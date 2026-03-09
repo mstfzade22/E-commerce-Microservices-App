@@ -13,9 +13,13 @@ import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.TimeUnit;
+
 @Service
 @Slf4j
 public class InventoryGrpcClient {
+
+    private static final long TIMEOUT_SECONDS = 5;
 
     @GrpcClient("inventory-service")
     private InventoryGrpcServiceGrpc.InventoryGrpcServiceBlockingStub inventoryStub;
@@ -26,7 +30,7 @@ public class InventoryGrpcClient {
                 .setProductId(productId)
                 .setQuantity(quantity)
                 .build();
-        return inventoryStub.checkStock(request);
+        return inventoryStub.withDeadlineAfter(TIMEOUT_SECONDS, TimeUnit.SECONDS).checkStock(request);
     }
 
     public ReserveStockResponse reserveStock(String orderId, Long productId, Integer quantity) {
@@ -36,7 +40,7 @@ public class InventoryGrpcClient {
                 .setProductId(productId)
                 .setQuantity(quantity)
                 .build();
-        return inventoryStub.reserveStock(request);
+        return inventoryStub.withDeadlineAfter(TIMEOUT_SECONDS, TimeUnit.SECONDS).reserveStock(request);
     }
 
     public ConfirmStockResponse confirmStock(String orderId, Long productId) {
@@ -45,7 +49,7 @@ public class InventoryGrpcClient {
                 .setOrderId(orderId)
                 .setProductId(productId)
                 .build();
-        return inventoryStub.confirmStock(request);
+        return inventoryStub.withDeadlineAfter(TIMEOUT_SECONDS, TimeUnit.SECONDS).confirmStock(request);
     }
 
     public ReleaseStockResponse releaseStock(String orderId, Long productId) {
@@ -54,6 +58,6 @@ public class InventoryGrpcClient {
                 .setOrderId(orderId)
                 .setProductId(productId)
                 .build();
-        return inventoryStub.releaseStock(request);
+        return inventoryStub.withDeadlineAfter(TIMEOUT_SECONDS, TimeUnit.SECONDS).releaseStock(request);
     }
 }

@@ -8,10 +8,13 @@ import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
 public class ProductGrpcClient {
+
+    private static final long TIMEOUT_SECONDS = 5;
 
     @GrpcClient("product-service")
     private ProductGrpcServiceGrpc.ProductGrpcServiceBlockingStub productStub;
@@ -19,7 +22,7 @@ public class ProductGrpcClient {
     public ProductResponse getProduct(Long productId) {
         log.debug("gRPC call: GetProduct({})", productId);
         try {
-            return productStub.getProduct(
+            return productStub.withDeadlineAfter(TIMEOUT_SECONDS, TimeUnit.SECONDS).getProduct(
                     GetProductRequest.newBuilder().setProductId(productId).build()
             );
         } catch (StatusRuntimeException e) {
@@ -31,7 +34,7 @@ public class ProductGrpcClient {
     public List<ProductResponse> getProductsByIds(List<Long> productIds) {
         log.debug("gRPC call: GetProductsByIds({})", productIds);
         try {
-            ProductListResponse response = productStub.getProductsByIds(
+            ProductListResponse response = productStub.withDeadlineAfter(TIMEOUT_SECONDS, TimeUnit.SECONDS).getProductsByIds(
                     GetProductsByIdsRequest.newBuilder().addAllProductIds(productIds).build()
             );
             return response.getProductsList();
@@ -44,7 +47,7 @@ public class ProductGrpcClient {
     public boolean checkProductExists(Long productId) {
         log.debug("gRPC call: CheckProductExists({})", productId);
         try {
-            CheckProductExistsResponse response = productStub.checkProductExists(
+            CheckProductExistsResponse response = productStub.withDeadlineAfter(TIMEOUT_SECONDS, TimeUnit.SECONDS).checkProductExists(
                     CheckProductExistsRequest.newBuilder().setProductId(productId).build()
             );
             return response.getExists();

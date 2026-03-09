@@ -14,6 +14,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
@@ -43,7 +44,9 @@ public class KapitalBankClient {
 
     @PostConstruct
     public void init() {
-        this.httpClient = HttpClient.newHttpClient();
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
         this.objectMapper = new ObjectMapper();
         this.basicAuthHeader = "Basic " + Base64.getEncoder()
                 .encodeToString((username + ":" + password).getBytes(StandardCharsets.UTF_8));
@@ -103,6 +106,7 @@ public class KapitalBankClient {
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
+                    .timeout(Duration.ofSeconds(30))
                     .header("Content-Type", "application/json")
                     .header("Authorization", basicAuthHeader)
                     .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))
@@ -130,6 +134,7 @@ public class KapitalBankClient {
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
+                    .timeout(Duration.ofSeconds(30))
                     .header("Authorization", basicAuthHeader)
                     .GET()
                     .build();
