@@ -17,23 +17,23 @@ public class OrderEventProducer {
     }
 
     public void sendOrderCreatedEvent(OrderCreatedEvent event) {
-        send(event.userId().toString(), event);
+        send(event.orderNumber(), event);
     }
 
     public void sendOrderConfirmedEvent(OrderConfirmedEvent event) {
-        send(event.userId().toString(), event);
+        send(event.orderNumber(), event);
     }
 
     public void sendOrderCancelledEvent(OrderCancelledEvent event) {
-        send(event.userId().toString(), event);
+        send(event.orderNumber(), event);
     }
 
     public void sendOrderShippedEvent(OrderShippedEvent event) {
-        send(event.userId().toString(), event);
+        send(event.orderNumber(), event);
     }
 
     public void sendOrderDeliveredEvent(OrderDeliveredEvent event) {
-        send(event.userId().toString(), event);
+        send(event.orderNumber(), event);
     }
 
     private void send(String key, Object event) {

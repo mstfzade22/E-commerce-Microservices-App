@@ -59,6 +59,7 @@ public class KafkaConsumerConfig {
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, KafkaTopicConfig.NOTIFICATION_SERVICE_GROUP);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
 
         log.info("Kafka consumer configured with bootstrap servers: {}, group: {}",
                 bootstrapServers, KafkaTopicConfig.NOTIFICATION_SERVICE_GROUP);
@@ -71,6 +72,7 @@ public class KafkaConsumerConfig {
             ConsumerFactory<String, JsonNode> consumerFactory) {
         ConcurrentKafkaListenerContainerFactory<String, JsonNode> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
+        factory.getContainerProperties().setAckMode(org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
 
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(
                 (record, exception) -> log.error("Failed to process message after retries - topic: {}, partition: {}, offset: {}, error: {}",

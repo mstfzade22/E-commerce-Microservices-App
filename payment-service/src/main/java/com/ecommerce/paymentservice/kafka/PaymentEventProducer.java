@@ -20,19 +20,19 @@ public class PaymentEventProducer {
     }
 
     public void sendPaymentInitiatedEvent(PaymentInitiatedEvent event) {
-        send(event.userId().toString(), event);
+        send(event.orderNumber(), event);
     }
 
     public void sendPaymentSuccessEvent(PaymentSuccessEvent event) {
-        send(event.userId().toString(), event);
+        send(event.orderNumber(), event);
     }
 
     public void sendPaymentFailedEvent(PaymentFailedEvent event) {
-        send(event.userId().toString(), event);
+        send(event.orderNumber(), event);
     }
 
     public void sendPaymentRefundedEvent(PaymentRefundedEvent event) {
-        send(event.userId().toString(), event);
+        send(event.orderNumber(), event);
     }
 
     private void send(String key, Object event) {

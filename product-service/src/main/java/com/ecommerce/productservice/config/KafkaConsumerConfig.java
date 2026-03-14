@@ -57,7 +57,7 @@ public class KafkaConsumerConfig {
         configProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ConsumerConfig.GROUP_ID_CONFIG, KafkaTopicConfig.PRODUCT_SERVICE_GROUP);
         configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
+        configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
 
         log.info("Kafka consumer configured with bootstrap servers: {}, group: {}", bootstrapServers, KafkaTopicConfig.PRODUCT_SERVICE_GROUP);
 
@@ -70,6 +70,7 @@ public class KafkaConsumerConfig {
         ConcurrentKafkaListenerContainerFactory<String, JsonNode> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
+        factory.getContainerProperties().setAckMode(org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
 
         // Configure error handler with retry (3 retries, 1 second interval)
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(

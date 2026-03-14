@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,21 +40,25 @@ public class ProductEventConsumer {
         try {
             String eventId = payload.has("eventId") ? payload.get("eventId").asText() : null;
 
-            if (eventId != null && processedEventRepository.existsByEventId(eventId)) {
-                log.info("Event {} already processed, skipping", eventId);
-                return;
+            if (eventId != null) {
+                try {
+                    processedEventRepository.saveAndFlush(ProcessedEvent.builder()
+                            .eventId(eventId)
+                            .eventType("PRODUCT_EVENT")
+                            .processedAt(Instant.now())
+                            .build());
+                } catch (DataIntegrityViolationException e) {
+                    log.info("Event {} already processed, skipping", eventId);
+                    return;
+                }
             }
 
-            String eventType = "UNKNOWN";
-
             if (payload.has("deletedAt")) {
-                eventType = "PRODUCT_DELETED";
                 ProductDeletedEvent event = objectMapper.treeToValue(payload, ProductDeletedEvent.class);
                 log.info("Consumed ProductDeletedEvent for productId: {}", event.id());
                 inventoryService.deleteInventory(event.id());
 
             } else if (payload.has("updatedAt") && !payload.get("updatedAt").isNull()) {
-                eventType = "PRODUCT_UPDATED";
                 ProductUpdatedEvent event = objectMapper.treeToValue(payload, ProductUpdatedEvent.class);
                 log.info("Consumed ProductUpdatedEvent for productId: {}", event.id());
                 if (event.stock() != null) {
@@ -61,7 +66,6 @@ public class ProductEventConsumer {
                 }
 
             } else if (payload.has("categoryId")) {
-                eventType = "PRODUCT_CREATED";
                 ProductCreatedEvent event = objectMapper.treeToValue(payload, ProductCreatedEvent.class);
                 log.info("Consumed ProductCreatedEvent for productId: {}", event.id());
                 inventoryService.createInventory(event);
@@ -69,17 +73,11 @@ public class ProductEventConsumer {
             } else {
                 log.debug("Consumed an unhandled product event type. Payload: {}", payload);
             }
-
-            if (eventId != null) {
-                processedEventRepository.save(ProcessedEvent.builder()
-                        .eventId(eventId)
-                        .eventType(eventType)
-                        .processedAt(Instant.now())
-                        .build());
-            }
+        } catch (DataIntegrityViolationException e) {
+            log.info("Duplicate event detected, skipping");
         } catch (Exception e) {
             log.error("Failed to process consumed product event. Payload: {}", payload, e);
-            throw e;
+            throw new RuntimeException("Failed to process product event", e);
         }
     }
 }

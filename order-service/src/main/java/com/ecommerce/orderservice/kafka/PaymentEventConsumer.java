@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,9 +43,17 @@ public class PaymentEventConsumer {
             String eventId = node.has("eventId") ? node.get("eventId").asText() : null;
             String eventType = node.has("eventType") ? node.get("eventType").asText() : "";
 
-            if (eventId != null && processedEventRepository.existsByEventId(eventId)) {
-                log.info("Event {} already processed, skipping", eventId);
-                return;
+            if (eventId != null) {
+                try {
+                    processedEventRepository.saveAndFlush(ProcessedEvent.builder()
+                            .eventId(eventId)
+                            .eventType(eventType)
+                            .processedAt(Instant.now())
+                            .build());
+                } catch (DataIntegrityViolationException e) {
+                    log.info("Event {} already processed, skipping", eventId);
+                    return;
+                }
             }
 
             switch (eventType) {
@@ -60,14 +69,9 @@ public class PaymentEventConsumer {
                 }
                 default -> log.debug("Ignoring payment event with type: {}", eventType);
             }
-
-            if (eventId != null) {
-                processedEventRepository.save(ProcessedEvent.builder()
-                        .eventId(eventId)
-                        .eventType(eventType)
-                        .processedAt(Instant.now())
-                        .build());
-            }
+        } catch (DataIntegrityViolationException e) {
+            // Already handled above, but guard against unexpected cases
+            log.info("Duplicate event detected, skipping");
         } catch (Exception e) {
             log.error("Error processing payment event: {}", e.getMessage(), e);
             throw e;
