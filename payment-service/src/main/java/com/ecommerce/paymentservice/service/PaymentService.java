@@ -70,14 +70,16 @@ public class PaymentService {
     }
 
     @Transactional
-    public PaymentInitiatedResponse initiatePayment(UUID userId, InitiatePaymentRequest request, BigDecimal amount, String accessToken) {
+    public PaymentInitiatedResponse initiatePayment(UUID userId, InitiatePaymentRequest request, String role) {
         log.info("Initiating payment for order {} by user {}", request.orderNumber(), userId);
 
-        String orderStatus = orderServiceClient.getOrderStatus(request.orderNumber(), accessToken);
-        if (!"CONFIRMED".equals(orderStatus)) {
+        OrderServiceClient.OrderDetails orderDetails = orderServiceClient.getOrderDetails(request.orderNumber(), userId, role);
+        if (!"CONFIRMED".equals(orderDetails.status())) {
             throw new OrderNotConfirmedException(
-                    "Order " + request.orderNumber() + " is in status " + orderStatus + ". Only CONFIRMED orders can be paid.");
+                    "Order " + request.orderNumber() + " is in status " + orderDetails.status() + ". Only CONFIRMED orders can be paid.");
         }
+
+        BigDecimal amount = orderDetails.finalAmount();
 
         if (paymentRepository.existsByOrderNumberAndStatusIn(request.orderNumber(),
                 List.of(PaymentStatus.APPROVED, PaymentStatus.PROCESSING, PaymentStatus.REFUNDED))) {

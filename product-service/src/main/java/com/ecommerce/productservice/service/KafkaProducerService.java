@@ -5,22 +5,28 @@ import com.ecommerce.productservice.dto.event.PriceChangedEvent;
 import com.ecommerce.productservice.dto.event.ProductCreatedEvent;
 import com.ecommerce.productservice.dto.event.ProductDeletedEvent;
 import com.ecommerce.productservice.dto.event.ProductUpdatedEvent;
+import com.ecommerce.productservice.entity.OutboxEvent;
 import com.ecommerce.productservice.entity.Product;
-import lombok.RequiredArgsConstructor;
+import com.ecommerce.productservice.repositories.OutboxEventRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class KafkaProducerService {
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final OutboxEventRepository outboxRepository;
+    private final ObjectMapper kafkaObjectMapper;
+
+    public KafkaProducerService(OutboxEventRepository outboxRepository,
+                                @Qualifier("kafkaObjectMapper") ObjectMapper kafkaObjectMapper) {
+        this.outboxRepository = outboxRepository;
+        this.kafkaObjectMapper = kafkaObjectMapper;
+    }
 
     public void publishProductCreatedEvent(Product product, Integer initialStock) {
         ProductCreatedEvent event = ProductCreatedEvent.of(
@@ -36,7 +42,7 @@ public class KafkaProducerService {
                 product.getCreatedAt()
         );
 
-        sendEvent(KafkaTopicConfig.PRODUCT_EVENTS_TOPIC, product.getId().toString(), event, "ProductCreatedEvent");
+        saveToOutbox(product.getId().toString(), event, "PRODUCT_CREATED");
     }
 
     public void publishProductUpdatedEvent(Product product, Integer stock) {
@@ -52,13 +58,13 @@ public class KafkaProducerService {
                 product.getUpdatedAt()
         );
 
-        sendEvent(KafkaTopicConfig.PRODUCT_EVENTS_TOPIC, product.getId().toString(), event, "ProductUpdatedEvent");
+        saveToOutbox(product.getId().toString(), event, "PRODUCT_UPDATED");
     }
 
     public void publishProductDeletedEvent(Long productId, String slug, String sku) {
         ProductDeletedEvent event = ProductDeletedEvent.of(productId, slug, sku);
 
-        sendEvent(KafkaTopicConfig.PRODUCT_EVENTS_TOPIC, productId.toString(), event, "ProductDeletedEvent");
+        saveToOutbox(productId.toString(), event, "PRODUCT_DELETED");
     }
 
     public void publishPriceChangedEvent(Product product, BigDecimal oldPrice, BigDecimal oldDiscountPrice) {
@@ -71,25 +77,24 @@ public class KafkaProducerService {
                 product.getDiscountPrice()
         );
 
-        sendEvent(KafkaTopicConfig.PRODUCT_EVENTS_TOPIC, product.getId().toString(), event, "PriceChangedEvent");
+        saveToOutbox(product.getId().toString(), event, "PRICE_CHANGED");
     }
 
-    private void sendEvent(String topic, String key, Object event, String eventType) {
-        log.info("Publishing {} to topic '{}' with key '{}'", eventType, topic, key);
-
-        CompletableFuture<SendResult<String, Object>> future = kafkaTemplate.send(topic, key, event);
-
-        future.whenComplete((result, ex) -> {
-            if (ex != null) {
-                log.error("Failed to publish {} with key '{}': {}", eventType, key, ex.getMessage(), ex);
-            } else {
-                log.info("Successfully published {} with key '{}', partition: {}, offset: {}",
-                        eventType,
-                        key,
-                        result.getRecordMetadata().partition(),
-                        result.getRecordMetadata().offset());
-            }
-        });
+    private void saveToOutbox(String key, Object event, String eventType) {
+        try {
+            String payload = kafkaObjectMapper.writeValueAsString(event);
+            outboxRepository.save(OutboxEvent.builder()
+                    .aggregateType("Product")
+                    .aggregateId(key)
+                    .eventType(eventType)
+                    .topic(KafkaTopicConfig.PRODUCT_EVENTS_TOPIC)
+                    .partitionKey(key)
+                    .payload(payload)
+                    .build());
+            log.info("Saved {} to outbox for key '{}'", eventType, key);
+        } catch (Exception e) {
+            log.error("Failed to save {} to outbox: {}", eventType, e.getMessage(), e);
+            throw new RuntimeException("Failed to serialize event for outbox", e);
+        }
     }
-
 }

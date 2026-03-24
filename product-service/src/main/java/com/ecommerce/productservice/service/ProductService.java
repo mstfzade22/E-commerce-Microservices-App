@@ -2,6 +2,7 @@ package com.ecommerce.productservice.service;
 
 import com.ecommerce.productservice.config.RedisConfig;
 import com.ecommerce.productservice.dto.request.CreateProductRequest;
+import com.ecommerce.productservice.dto.request.ProductFilterRequest;
 import com.ecommerce.productservice.dto.request.UpdateProductRequest;
 import com.ecommerce.productservice.dto.response.PagedResponse;
 import com.ecommerce.productservice.dto.response.ProductCreateResponse;
@@ -15,6 +16,7 @@ import com.ecommerce.productservice.exception.ResourceNotFoundException;
 import com.ecommerce.productservice.mapper.ProductMapper;
 import com.ecommerce.productservice.repositories.CategoryRepository;
 import com.ecommerce.productservice.repositories.ProductRepository;
+import com.ecommerce.productservice.repositories.ProductSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -24,6 +26,8 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -170,6 +174,22 @@ public class ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "slug", slug));
 
         return productMapper.toDetailResponse(product);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<ProductSummaryResponse> filterProducts(ProductFilterRequest filter, int page, int size) {
+        String sortBy = filter.sortBy() != null ? filter.sortBy() : "createdAt";
+        String sortDir = filter.sortDir() != null ? filter.sortDir() : "desc";
+        Sort sort = "asc".equalsIgnoreCase(sortDir) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Specification<Product> spec = ProductSpecification.buildFilter(
+                filter.keyword(), filter.categoryId(), filter.featured(),
+                filter.minPrice(), filter.maxPrice(),
+                filter.stockStatus(), filter.attributes());
+
+        Page<Product> productPage = productRepository.findAll(spec, pageable);
+        return PagedResponse.from(productPage, productMapper::toSummaryResponse);
     }
 
     @Transactional(readOnly = true)

@@ -4,12 +4,12 @@ import com.ecommerce.notificationservice.config.RedisConfig;
 import com.ecommerce.notificationservice.dto.UserInfo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.web.client.ClientHttpRequestFactories;
-import org.springframework.boot.web.client.ClientHttpRequestFactorySettings;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.net.http.HttpClient;
 import java.time.Duration;
 
 import java.util.Optional;
@@ -22,12 +22,14 @@ public class UserServiceClient {
     private final RestClient restClient;
 
     public UserServiceClient(@Value("${services.user-service.url}") String userServiceUrl) {
-        ClientHttpRequestFactorySettings settings = ClientHttpRequestFactorySettings.DEFAULTS
-                .withConnectTimeout(Duration.ofSeconds(5))
-                .withReadTimeout(Duration.ofSeconds(10));
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .build();
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(Duration.ofSeconds(10));
         this.restClient = RestClient.builder()
                 .baseUrl(userServiceUrl)
-                .requestFactory(ClientHttpRequestFactories.get(settings))
+                .requestFactory(requestFactory)
                 .build();
     }
 

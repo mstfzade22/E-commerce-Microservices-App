@@ -67,7 +67,7 @@ public class InventoryEventConsumer {
             log.info("Duplicate event detected, skipping");
         } catch (Exception e) {
             log.error("Error processing inventory event: {}", e.getMessage(), e);
-            throw e;
+            throw new RuntimeException("Failed to process inventory event", e);
         }
     }
 }

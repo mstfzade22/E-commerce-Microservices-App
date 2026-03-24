@@ -67,7 +67,7 @@ public class OrderEventConsumer {
             log.info("Duplicate event detected, skipping");
         } catch (Exception e) {
             log.error("Error processing order event: {}", e.getMessage(), e);
-            throw e;
+            throw new RuntimeException("Failed to process order event", e);
         }
     }
 }

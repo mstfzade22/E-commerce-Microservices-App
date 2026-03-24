@@ -1,5 +1,6 @@
 package com.ecommerce.notificationservice.config;
 
+import com.ecommerce.notificationservice.kafka.DlqService;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
@@ -29,12 +31,15 @@ public class KafkaConsumerConfig {
 
     private final String bootstrapServers;
     private final ObjectMapper kafkaObjectMapper;
+    private final DlqService dlqService;
 
     public KafkaConsumerConfig(
             @Value("${spring.kafka.bootstrap-servers}") String bootstrapServers,
-            @Qualifier("kafkaObjectMapper") ObjectMapper kafkaObjectMapper) {
+            @Qualifier("kafkaObjectMapper") ObjectMapper kafkaObjectMapper,
+            @Lazy DlqService dlqService) {
         this.bootstrapServers = bootstrapServers;
         this.kafkaObjectMapper = kafkaObjectMapper;
+        this.dlqService = dlqService;
     }
 
     @Bean
@@ -75,8 +80,11 @@ public class KafkaConsumerConfig {
         factory.getContainerProperties().setAckMode(org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
 
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(
-                (record, exception) -> log.error("Failed to process message after retries - topic: {}, partition: {}, offset: {}, error: {}",
-                        record.topic(), record.partition(), record.offset(), exception.getMessage()),
+                (record, exception) -> {
+                    log.error("Failed to process message after retries - topic: {}, partition: {}, offset: {}, error: {}",
+                            record.topic(), record.partition(), record.offset(), exception.getMessage());
+                    dlqService.saveFailedEvent(record, exception);
+                },
                 new FixedBackOff(1000L, 3L)
         );
         factory.setCommonErrorHandler(errorHandler);

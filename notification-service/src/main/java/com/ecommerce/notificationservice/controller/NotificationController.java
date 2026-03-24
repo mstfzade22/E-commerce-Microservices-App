@@ -3,10 +3,14 @@ package com.ecommerce.notificationservice.controller;
 import com.ecommerce.notificationservice.dto.response.NotificationResponse;
 import com.ecommerce.notificationservice.dto.response.PagedResponse;
 import com.ecommerce.notificationservice.service.NotificationService;
+import com.ecommerce.notificationservice.service.SseEmitterService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.UUID;
 
@@ -17,6 +21,18 @@ import java.util.UUID;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final SseEmitterService sseEmitterService;
+
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter stream(HttpServletRequest request) {
+        String userIdHeader = request.getHeader("X-User-Id");
+        if (userIdHeader == null) {
+            throw new IllegalStateException("Missing X-User-Id header");
+        }
+        UUID userId = UUID.fromString(userIdHeader);
+        log.debug("SSE /notifications/stream for user {}", userId);
+        return sseEmitterService.subscribe(userId);
+    }
 
     @GetMapping
     public ResponseEntity<PagedResponse<NotificationResponse>> getAllNotifications(

@@ -7,7 +7,6 @@ import com.ecommerce.orderservice.entity.OrderStatus;
 import com.ecommerce.orderservice.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +16,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,13 +32,12 @@ public class OrderController {
     @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE', 'ADMIN')")
     @Operation(summary = "Create order", description = "Creates an order from the current user's cart")
     public ResponseEntity<OrderCreateResponse> createOrder(
-            @Valid @RequestBody CreateOrderRequest request,
-            HttpServletRequest httpRequest) {
+            @Valid @RequestBody CreateOrderRequest request) {
         UUID userId = extractUserId();
-        String accessToken = extractToken(httpRequest);
+        String role = extractRole();
         log.debug("POST /orders for user {}", userId);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(orderService.createOrder(userId, request, accessToken));
+                .body(orderService.createOrder(userId, request, role));
     }
 
     @GetMapping
@@ -142,20 +139,4 @@ public class OrderController {
                 .getAuthorities().iterator().next().getAuthority();
     }
 
-    private String extractToken(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            return authHeader.substring(7);
-        }
-
-        if (request.getCookies() != null) {
-            return Arrays.stream(request.getCookies())
-                    .filter(cookie -> "access_token".equals(cookie.getName()))
-                    .map(jakarta.servlet.http.Cookie::getValue)
-                    .findFirst()
-                    .orElse(null);
-        }
-
-        return null;
-    }
 }

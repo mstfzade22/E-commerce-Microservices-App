@@ -1,6 +1,7 @@
 package com.ecommerce.productservice.controller;
 
 import com.ecommerce.productservice.dto.request.CreateProductRequest;
+import com.ecommerce.productservice.dto.request.ProductFilterRequest;
 import com.ecommerce.productservice.dto.request.UpdateProductRequest;
 import com.ecommerce.productservice.dto.response.PagedResponse;
 import com.ecommerce.productservice.dto.response.ProductCreateResponse;
@@ -19,7 +20,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/products")
@@ -31,16 +34,35 @@ public class ProductController {
     private final ProductService productService;
 
     @GetMapping
-    @Operation(summary = "Get all products", description = "Retrieves a paginated list of products with summary information")
+    @Operation(summary = "Filter products", description = "Retrieves a paginated list of products with dynamic filtering, sorting, and search")
     public ResponseEntity<PagedResponse<ProductSummaryResponse>> getProducts(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        log.info("Request to get a page of Products. Page: {}, Size: {}", page, size);
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Boolean featured,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) String stockStatus,
+            @RequestParam(required = false) Map<String, String> attributes,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
 
-        Pageable pageable = PageRequest.of(page, size);
-        PagedResponse<ProductSummaryResponse> products = productService.getAllProducts(pageable);
+        Map<String, String> filteredAttributes = null;
+        if (attributes != null) {
+            filteredAttributes = attributes.entrySet().stream()
+                    .filter(e -> e.getKey().startsWith("attr."))
+                    .collect(java.util.stream.Collectors.toMap(
+                            e -> e.getKey().substring(5),
+                            Map.Entry::getValue));
+            if (filteredAttributes.isEmpty()) filteredAttributes = null;
+        }
 
-        return ResponseEntity.ok(products);
+        ProductFilterRequest filter = new ProductFilterRequest(
+                keyword, categoryId, featured, minPrice, maxPrice,
+                stockStatus, filteredAttributes, sortBy, sortDir);
+
+        return ResponseEntity.ok(productService.filterProducts(filter, page, size));
     }
 
     @GetMapping("/{id}")

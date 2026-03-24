@@ -62,15 +62,15 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderCreateResponse createOrder(UUID userId, CreateOrderRequest request, String accessToken) {
+    public OrderCreateResponse createOrder(UUID userId, CreateOrderRequest request, String role) {
         log.info("Creating order for user {}", userId);
 
-        CartResponse cart = cartServiceClient.getCart(accessToken);
+        CartResponse cart = cartServiceClient.getCart(userId, role);
         if (cart.items() == null || cart.items().isEmpty()) {
             throw new CartEmptyException("Cannot create order: cart is empty");
         }
 
-        CartValidationResponse validation = cartServiceClient.validateCart(accessToken);
+        CartValidationResponse validation = cartServiceClient.validateCart(userId, role);
         if (!validation.valid()) {
             throw new CartValidationException("Cart validation failed", validation.errors());
         }

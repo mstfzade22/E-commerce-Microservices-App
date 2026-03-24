@@ -32,6 +32,7 @@ public class NotificationService {
     private final UserServiceClient userServiceClient;
     private final NotificationRepository notificationRepository;
     private final ObjectMapper objectMapper;
+    private final List<NotificationChannel> channels;
 
     @Value("${notification.admin-email}")
     private String adminEmail;
@@ -39,11 +40,13 @@ public class NotificationService {
     public NotificationService(EmailService emailService,
                                UserServiceClient userServiceClient,
                                NotificationRepository notificationRepository,
-                               @Qualifier("kafkaObjectMapper") ObjectMapper objectMapper) {
+                               @Qualifier("kafkaObjectMapper") ObjectMapper objectMapper,
+                               List<NotificationChannel> channels) {
         this.emailService = emailService;
         this.userServiceClient = userServiceClient;
         this.notificationRepository = notificationRepository;
         this.objectMapper = objectMapper;
+        this.channels = channels;
     }
 
     // ========== Order Event Handlers ==========
@@ -244,7 +247,16 @@ public class NotificationService {
             notification.setErrorMessage(e.getMessage());
         }
 
-        notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+
+        for (NotificationChannel channel : channels) {
+            try {
+                channel.send(saved);
+            } catch (Exception e) {
+                log.warn("Channel {} failed for notification {}: {}",
+                        channel.getClass().getSimpleName(), saved.getId(), e.getMessage());
+            }
+        }
     }
 
     private boolean isDuplicate(NotificationType type, String referenceId, String email) {

@@ -3,10 +3,12 @@ package com.ecommerce.inventoryservice.kafka;
 import com.ecommerce.inventoryservice.config.KafkaTopicConfig;
 import com.ecommerce.inventoryservice.dto.event.*;
 import com.ecommerce.inventoryservice.entity.Inventory;
+import com.ecommerce.inventoryservice.entity.OutboxEvent;
 import com.ecommerce.inventoryservice.entity.StockReservation;
-import lombok.RequiredArgsConstructor;
+import com.ecommerce.inventoryservice.repository.OutboxEventRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -14,10 +16,16 @@ import java.util.UUID;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class InventoryEventProducer {
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final OutboxEventRepository outboxRepository;
+    private final ObjectMapper kafkaObjectMapper;
+
+    public InventoryEventProducer(OutboxEventRepository outboxRepository,
+                                  @Qualifier("kafkaObjectMapper") ObjectMapper kafkaObjectMapper) {
+        this.outboxRepository = outboxRepository;
+        this.kafkaObjectMapper = kafkaObjectMapper;
+    }
 
     public void sendStockUpdatedEvent(Inventory inventory) {
         StockUpdatedEvent event = new StockUpdatedEvent(
@@ -28,8 +36,7 @@ public class InventoryEventProducer {
                 inventory.getStockStatus(),
                 Instant.now()
         );
-        log.info("Producing STOCK_UPDATED event to {} for productId: {}", KafkaTopicConfig.INVENTORY_EVENTS_TOPIC, event.productId());
-        kafkaTemplate.send(KafkaTopicConfig.INVENTORY_EVENTS_TOPIC, event.productId().toString(), event);
+        saveToOutbox(event.productId().toString(), event, "STOCK_UPDATED");
     }
 
     public void sendStockReservedEvent(StockReservation reservation, Inventory inventory) {
@@ -43,8 +50,7 @@ public class InventoryEventProducer {
                 inventory.getStockStatus(),
                 Instant.now()
         );
-        log.info("Producing STOCK_RESERVED event to {} for orderId: {}", KafkaTopicConfig.INVENTORY_EVENTS_TOPIC, event.orderId());
-        kafkaTemplate.send(KafkaTopicConfig.INVENTORY_EVENTS_TOPIC, event.productId().toString(), event);
+        saveToOutbox(event.productId().toString(), event, "STOCK_RESERVED");
     }
 
     public void sendStockReleasedEvent(StockReservation reservation, Inventory inventory) {
@@ -58,8 +64,7 @@ public class InventoryEventProducer {
                 inventory.getStockStatus(),
                 Instant.now()
         );
-        log.info("Producing STOCK_RELEASED event to {} for orderId: {}", KafkaTopicConfig.INVENTORY_EVENTS_TOPIC, event.orderId());
-        kafkaTemplate.send(KafkaTopicConfig.INVENTORY_EVENTS_TOPIC, event.productId().toString(), event);
+        saveToOutbox(event.productId().toString(), event, "STOCK_RELEASED");
     }
 
     public void sendStockConfirmedEvent(StockReservation reservation, Inventory inventory) {
@@ -73,7 +78,24 @@ public class InventoryEventProducer {
                 inventory.getStockStatus(),
                 Instant.now()
         );
-        log.info("Producing STOCK_CONFIRMED event to {} for orderId: {}", KafkaTopicConfig.INVENTORY_EVENTS_TOPIC, event.orderId());
-        kafkaTemplate.send(KafkaTopicConfig.INVENTORY_EVENTS_TOPIC, event.productId().toString(), event);
+        saveToOutbox(event.productId().toString(), event, "STOCK_CONFIRMED");
+    }
+
+    private void saveToOutbox(String key, Object event, String eventType) {
+        try {
+            String payload = kafkaObjectMapper.writeValueAsString(event);
+            outboxRepository.save(OutboxEvent.builder()
+                    .aggregateType("Inventory")
+                    .aggregateId(key)
+                    .eventType(eventType)
+                    .topic(KafkaTopicConfig.INVENTORY_EVENTS_TOPIC)
+                    .partitionKey(key)
+                    .payload(payload)
+                    .build());
+            log.info("Saved {} to outbox for key '{}'", eventType, key);
+        } catch (Exception e) {
+            log.error("Failed to save {} to outbox: {}", eventType, e.getMessage(), e);
+            throw new RuntimeException("Failed to serialize event for outbox", e);
+        }
     }
 }
