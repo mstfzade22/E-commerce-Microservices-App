@@ -79,8 +79,8 @@ public class CategoryController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Create category", description = "Creates a new category (Admin only)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STORE')")
+    @Operation(summary = "Create category", description = "Creates a new category (Admin/Store only)")
     public ResponseEntity<CategoryCreateResponse> createCategory(@Valid @RequestBody CreateCategoryRequest request) {
         log.info("Request to create category with slug: {}", request.slug());
 
@@ -90,8 +90,8 @@ public class CategoryController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Update category", description = "Updates an existing category (Admin only)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STORE')")
+    @Operation(summary = "Update category", description = "Updates an existing category (Admin/Store only)")
     public ResponseEntity<CategoryDetailResponse> updateCategory(
             @PathVariable Long id,
             @Valid @RequestBody UpdateCategoryRequest request) {
@@ -103,8 +103,8 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Delete category", description = "Deletes a category (Admin only)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STORE')")
+    @Operation(summary = "Delete category", description = "Deletes a category (Admin/Store only)")
     public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
         log.info("Request to delete category with ID: {}", id);
 

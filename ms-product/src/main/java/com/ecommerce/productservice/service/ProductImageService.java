@@ -1,5 +1,6 @@
 package com.ecommerce.productservice.service;
 
+import com.ecommerce.productservice.config.RedisConfig;
 import com.ecommerce.productservice.dto.request.ProductImageRequest;
 import com.ecommerce.productservice.dto.response.ProductImageResponse;
 import com.ecommerce.productservice.entity.Product;
@@ -11,6 +12,8 @@ import com.ecommerce.productservice.repositories.ProductImagesRepository;
 import com.ecommerce.productservice.repositories.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,6 +31,10 @@ public class ProductImageService {
     private final MinioService minioService;
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CacheNames.PRODUCT_BY_ID, key = "#productId"),
+            @CacheEvict(value = RedisConfig.CacheNames.PRODUCT_BY_SLUG, allEntries = true)
+    })
     public ProductImageResponse addImage(Long productId, MultipartFile file, ProductImageRequest request) {
         log.info("Adding image to product ID: {}", productId);
 
@@ -59,6 +66,10 @@ public class ProductImageService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CacheNames.PRODUCT_BY_ID, allEntries = true),
+            @CacheEvict(value = RedisConfig.CacheNames.PRODUCT_BY_SLUG, allEntries = true)
+    })
     public void deleteImage(Long imageId) {
         log.info("Deleting image with ID: {}", imageId);
 
@@ -93,6 +104,10 @@ public class ProductImageService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CacheNames.PRODUCT_BY_ID, key = "#productId"),
+            @CacheEvict(value = RedisConfig.CacheNames.PRODUCT_BY_SLUG, allEntries = true)
+    })
     public ProductImageResponse setPrimaryImage(Long productId, Long imageId) {
         log.info("Setting image {} as primary for product {}", imageId, productId);
 

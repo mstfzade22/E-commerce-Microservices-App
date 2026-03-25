@@ -93,8 +93,9 @@ public class PaymentController {
     }
 
     private String extractRole() {
-        return SecurityContextHolder.getContext().getAuthentication()
+        String authority = SecurityContextHolder.getContext().getAuthentication()
                 .getAuthorities().iterator().next().getAuthority();
+        return authority.startsWith("ROLE_") ? authority.substring(5) : authority;
     }
 
 }

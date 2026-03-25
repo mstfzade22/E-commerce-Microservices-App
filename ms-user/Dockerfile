@@ -8,13 +8,13 @@ COPY build.gradle settings.gradle gradlew ./
 COPY gradle ./gradle
 
 # Download dependencies
-RUN chmod +x gradlew && ./gradlew dependencies --no-daemon
+RUN chmod +x gradlew && ./gradlew dependencies --no-daemon -Dorg.gradle.jvmargs="-Xmx512m"
 
 # Copy source code
 COPY src ./src
 
 # Build application
-RUN ./gradlew bootJar --no-daemon
+RUN ./gradlew bootJar --no-daemon -Dorg.gradle.jvmargs="-Xmx512m"
 
 # Runtime stage
 FROM eclipse-temurin:21-jre-alpine
@@ -32,13 +32,13 @@ COPY --from=builder /app/build/libs/ms-user-*.jar app.jar
 EXPOSE 8081
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=5 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1
 
 # Run application
 ENTRYPOINT ["java", \
-  "-Xmx192m", \
+  "-Xmx256m", \
   "-Xss512k", \
-  "-XX:MaxMetaspaceSize=128m", \
+  "-XX:MaxMetaspaceSize=150m", \
   "-XX:+UseSerialGC", \
   "-jar", "app.jar"]

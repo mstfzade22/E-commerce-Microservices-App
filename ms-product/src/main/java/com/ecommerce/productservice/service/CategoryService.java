@@ -34,6 +34,9 @@ public class CategoryService {
     private final ProductRepository productRepository;
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CacheNames.CATEGORY_TREE, allEntries = true)
+    })
     public CategoryCreateResponse createCategory(CreateCategoryRequest request) {
         log.info("Creating category with slug: {}", request.slug());
 
@@ -56,6 +59,11 @@ public class CategoryService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CacheNames.CATEGORY_BY_ID, key = "#id"),
+            @CacheEvict(value = RedisConfig.CacheNames.CATEGORY_BY_SLUG, allEntries = true),
+            @CacheEvict(value = RedisConfig.CacheNames.CATEGORY_TREE, allEntries = true)
+    })
     public CategoryDetailResponse updateCategory(Long id, UpdateCategoryRequest request) {
         log.info("Updating category with ID: {}", id);
 

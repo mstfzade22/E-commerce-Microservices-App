@@ -44,7 +44,7 @@ services:
     image: hashicorp/vault:1.15
     container_name: vault
     restart: unless-stopped
-    mem_limit: 256m
+    mem_limit: 512m
     environment:
       VAULT_DEV_ROOT_TOKEN_ID: root-token
       VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
@@ -55,7 +55,7 @@ services:
     networks:
       - ecommerce-network
     healthcheck:
-      test: ["CMD-SHELL", "vault status -address=http://127.0.0.1:8200 || [ $$? -eq 2 ]"]
+      test: ["CMD-SHELL", "vault status -address=http://127.0.0.1:8200; exit_code=$$?; [ $$exit_code -eq 0 ] || [ $$exit_code -eq 2 ]"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -171,6 +171,7 @@ services:
     container_name: ms-api-gateway
     restart: unless-stopped
     mem_limit: 512m
+    profiles: ["core", "shopping", "full"]
     ports:
       - "8080:8080"
     environment:
@@ -185,20 +186,6 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
-      ms-user:
-        condition: service_started
-      ms-product:
-        condition: service_started
-      ms-inventory:
-        condition: service_started
-      ms-cart:
-        condition: service_started
-      ms-order:
-        condition: service_started
-      ms-payment:
-        condition: service_started
-      ms-notification:
-        condition: service_started
 
   ms-user:
     build:
@@ -207,6 +194,7 @@ services:
     container_name: ms-user
     restart: unless-stopped
     mem_limit: 512m
+    profiles: ["core", "full"]
     ports:
       - "8081:8081"
     environment:
@@ -232,6 +220,7 @@ services:
     container_name: ms-product
     restart: unless-stopped
     mem_limit: 512m
+    profiles: ["core", "full"]
     ports:
       - "8082:8082"
       - "9090:9090"
@@ -242,6 +231,7 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       MINIO_ENDPOINT: http://minio:9000
+      MINIO_PUBLIC_ENDPOINT: http://localhost:9000
     networks:
       - ecommerce-network
     depends_on:
@@ -262,7 +252,8 @@ services:
       dockerfile: Dockerfile
     container_name: ms-inventory
     restart: unless-stopped
-    mem_limit: 512m
+    mem_limit: 896m
+    profiles: ["core", "full"]
     ports:
       - "8083:8083"
       - "9091:9091"
@@ -290,7 +281,8 @@ services:
       dockerfile: Dockerfile
     container_name: ms-cart
     restart: unless-stopped
-    mem_limit: 512m
+    mem_limit: 896m
+    profiles: ["shopping", "full"]
     ports:
       - "8084:8084"
     environment:
@@ -323,7 +315,8 @@ services:
       dockerfile: Dockerfile
     container_name: ms-order
     restart: unless-stopped
-    mem_limit: 512m
+    mem_limit: 896m
+    profiles: ["shopping", "full"]
     ports:
       - "8085:8085"
     environment:
@@ -359,7 +352,8 @@ services:
       dockerfile: Dockerfile
     container_name: ms-payment
     restart: unless-stopped
-    mem_limit: 512m
+    mem_limit: 640m
+    profiles: ["shopping", "full"]
     ports:
       - "8086:8086"
     environment:
@@ -371,7 +365,7 @@ services:
       KAPITALBANK_API_URL: https://txpgtst.kapitalbank.az/api
       KAPITALBANK_USERNAME: TerminalSys/kapital
       KAPITALBANK_PASSWORD: kapital123
-      KAPITALBANK_CALLBACK_BASE_URL: https://yoursite.com/api/v1
+      KAPITALBANK_CALLBACK_BASE_URL: http://localhost:8080/api/v1
       ORDER_SERVICE_URL: http://ms-order:8085/api/v1
     networks:
       - ecommerce-network
@@ -394,6 +388,7 @@ services:
     container_name: ms-notification
     restart: unless-stopped
     mem_limit: 512m
+    profiles: ["shopping", "full"]
     ports:
       - "8087:8087"
     environment:
@@ -424,6 +419,7 @@ services:
     container_name: frontend
     restart: unless-stopped
     mem_limit: 64m
+    profiles: ["frontend", "full"]
     ports:
       - "80:80"
     networks:

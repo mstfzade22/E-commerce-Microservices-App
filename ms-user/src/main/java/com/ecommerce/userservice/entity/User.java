@@ -33,8 +33,6 @@ public class User {
     @NotBlank(message = "Email is required")
     private String email;
 
-    @Column(unique = true)
-    @NotBlank(message = "Password is required and can't be blank")
     private String passwordHash;
 
     private String firstName;

@@ -3,6 +3,7 @@ package com.ecommerce.productservice.config;
 import io.minio.BucketExistsArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
+import io.minio.SetBucketPolicyArgs;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -44,6 +45,14 @@ public class MinioConfig {
             } else {
                 log.info("MinIO bucket already exists: {}", bucketName);
             }
+
+            String publicPolicy = String.format(
+                    "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"*\"]},\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::%s/*\"]}]}",
+                    bucketName);
+            minioClient.setBucketPolicy(
+                    SetBucketPolicyArgs.builder().bucket(bucketName).config(publicPolicy).build()
+            );
+            log.info("Set public read policy on bucket: {}", bucketName);
         } catch (Exception e) {
             log.warn("Could not verify/create MinIO bucket: {}. MinIO may not be running.", e.getMessage());
         }

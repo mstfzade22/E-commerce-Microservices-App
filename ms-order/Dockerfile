@@ -5,11 +5,11 @@ WORKDIR /app
 COPY build.gradle settings.gradle gradlew ./
 COPY gradle ./gradle
 
-RUN chmod +x gradlew && ./gradlew dependencies --no-daemon
+RUN chmod +x gradlew && ./gradlew dependencies --no-daemon -Dorg.gradle.jvmargs="-Xmx768m -XX:MaxMetaspaceSize=256m"
 
 COPY src ./src
 
-RUN ./gradlew bootJar --no-daemon
+RUN ./gradlew bootJar -x test --no-daemon -Dorg.gradle.jvmargs="-Xmx768m -XX:MaxMetaspaceSize=256m"
 
 FROM eclipse-temurin:21-jre-alpine
 
@@ -22,12 +22,13 @@ COPY --from=builder /app/build/libs/ms-order-*.jar app.jar
 
 EXPOSE 8085
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=5 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8085/api/v1/actuator/health || exit 1
 
 ENTRYPOINT ["java", \
-  "-Xmx192m", \
-  "-Xss512k", \
-  "-XX:MaxMetaspaceSize=128m", \
-  "-XX:+UseSerialGC", \
+  "-Xmx512m", \
+  "-Xss2m", \
+  "-XX:MaxMetaspaceSize=256m", \
+  "-XX:+UseG1GC", \
+  "-XX:MaxGCPauseMillis=200", \
   "-jar", "app.jar"]

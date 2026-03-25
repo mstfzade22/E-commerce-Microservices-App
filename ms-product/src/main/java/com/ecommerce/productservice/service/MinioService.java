@@ -29,6 +29,9 @@ public class MinioService {
     @Value("${minio.endpoint:http://localhost:9000}")
     private String endpoint;
 
+    @Value("${minio.public-endpoint:http://localhost:9000}")
+    private String publicEndpoint;
+
 
     public String uploadImage(MultipartFile file) {
         validateFile(file);
@@ -125,13 +128,17 @@ public class MinioService {
     }
 
     private String buildImageUrl(String objectName) {
-        return endpoint + "/" + bucketName + "/" + objectName;
+        return publicEndpoint + "/" + bucketName + "/" + objectName;
     }
 
     private String extractObjectName(String imageUrl) {
-        String prefix = endpoint + "/" + bucketName + "/";
-        if (imageUrl.startsWith(prefix)) {
-            return imageUrl.substring(prefix.length());
+        // support both internal and public endpoint prefixes
+        for (String prefix : new String[]{
+                publicEndpoint + "/" + bucketName + "/",
+                endpoint + "/" + bucketName + "/"}) {
+            if (imageUrl.startsWith(prefix)) {
+                return imageUrl.substring(prefix.length());
+            }
         }
         throw new ImageUploadException("Invalid image URL format: " + imageUrl);
     }
