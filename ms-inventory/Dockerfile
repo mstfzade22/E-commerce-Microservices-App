@@ -20,11 +20,16 @@ WORKDIR /app
 RUN addgroup -S spring && adduser -S spring -G spring
 USER spring:spring
 
-COPY --from=builder /app/build/libs/inventory-service-*.jar app.jar
+COPY --from=builder /app/build/libs/ms-inventory-*.jar app.jar
 
 EXPOSE 8083 9091
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8083/api/v1/actuator/health || exit 1
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", \
+  "-Xmx192m", \
+  "-Xss512k", \
+  "-XX:MaxMetaspaceSize=128m", \
+  "-XX:+UseSerialGC", \
+  "-jar", "app.jar"]

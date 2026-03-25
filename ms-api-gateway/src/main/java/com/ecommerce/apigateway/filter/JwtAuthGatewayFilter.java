@@ -70,7 +70,6 @@ public class JwtAuthGatewayFilter implements GlobalFilter, Ordered {
         String path = request.getURI().getPath();
         String method = request.getMethod().name();
 
-        // Public paths — pass through without auth, strip any internal headers to prevent spoofing
         if (isPublicPath(path, method)) {
             ServerHttpRequest cleaned = request.mutate()
                     .headers(h -> {
@@ -81,7 +80,6 @@ public class JwtAuthGatewayFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange.mutate().request(cleaned).build());
         }
 
-        // Protected paths — validate JWT
         String token = extractToken(request);
 
         if (token == null) {
@@ -108,7 +106,6 @@ public class JwtAuthGatewayFilter implements GlobalFilter, Ordered {
             return onError(exchange.getResponse(), "Invalid token claims", HttpStatus.UNAUTHORIZED);
         }
 
-        // Check Redis denylist for revoked tokens
         String denylistKey = "jwt:denylist:" + jti;
         return redisTemplate.hasKey(denylistKey)
                 .flatMap(isDenied -> {
@@ -117,7 +114,6 @@ public class JwtAuthGatewayFilter implements GlobalFilter, Ordered {
                         return onError(exchange.getResponse(), "Token has been revoked", HttpStatus.UNAUTHORIZED);
                     }
 
-                    // Strip Authorization header and inject internal headers
                     ServerHttpRequest modifiedRequest = request.mutate()
                             .headers(h -> h.remove(HttpHeaders.AUTHORIZATION))
                             .header("X-User-Id", userId)

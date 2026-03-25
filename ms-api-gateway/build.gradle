@@ -29,7 +29,6 @@ ext {
 }
 
 dependencies {
-    // Spring Cloud Gateway (reactive - WebFlux based)
     implementation 'org.springframework.cloud:spring-cloud-starter-gateway-server-webflux'
 
     // Reactive Redis for rate limiting

@@ -6,6 +6,7 @@ services:
     image: postgres:16
     container_name: postgres
     restart: unless-stopped
+    mem_limit: 512m
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -26,6 +27,7 @@ services:
     image: redis:7-alpine
     container_name: redis
     restart: unless-stopped
+    mem_limit: 128m
     ports:
       - "6379:6379"
     volumes:
@@ -42,6 +44,7 @@ services:
     image: hashicorp/vault:1.15
     container_name: vault
     restart: unless-stopped
+    mem_limit: 256m
     environment:
       VAULT_DEV_ROOT_TOKEN_ID: root-token
       VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
@@ -61,6 +64,7 @@ services:
   vault-init:
     image: hashicorp/vault:1.15
     container_name: vault-init
+    mem_limit: 64m
     entrypoint: /bin/sh
     command: ["/vault-init.sh"]
     volumes:
@@ -79,6 +83,7 @@ services:
     image: minio/minio:latest
     container_name: minio
     restart: unless-stopped
+    mem_limit: 256m
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
@@ -100,6 +105,7 @@ services:
     image: apache/kafka:3.7.0
     container_name: kafka
     restart: unless-stopped
+    mem_limit: 768m
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -115,6 +121,7 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+      KAFKA_HEAP_OPTS: "-Xmx512m -Xms256m"
     ports:
       - "9092:9092"
       - "29092:29092"
@@ -132,10 +139,12 @@ services:
     image: redpandadata/console:latest
     container_name: redpanda-console
     restart: unless-stopped
+    mem_limit: 128m
+    profiles: ["debug"]
     environment:
       KAFKA_BROKERS: kafka:9092
     ports:
-      - "8080:8080"
+      - "8090:8080"
     networks:
       - ecommerce-network
     depends_on:
@@ -146,6 +155,8 @@ services:
     image: redis/redisinsight:latest
     container_name: redis-insight
     restart: unless-stopped
+    mem_limit: 128m
+    profiles: ["debug"]
     ports:
       - "5540:5540"
     networks:
@@ -153,12 +164,49 @@ services:
     depends_on:
       - redis
 
-  user-service:
+  ms-api-gateway:
     build:
-      context: ./user-service
+      context: ./ms-api-gateway
       dockerfile: Dockerfile
-    container_name: user-service
+    container_name: ms-api-gateway
     restart: unless-stopped
+    mem_limit: 512m
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_CLOUD_VAULT_URI: http://vault:8200
+      SPRING_CLOUD_VAULT_TOKEN: root-token
+      SPRING_DATA_REDIS_HOST: redis
+    networks:
+      - ecommerce-network
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      ms-user:
+        condition: service_started
+      ms-product:
+        condition: service_started
+      ms-inventory:
+        condition: service_started
+      ms-cart:
+        condition: service_started
+      ms-order:
+        condition: service_started
+      ms-payment:
+        condition: service_started
+      ms-notification:
+        condition: service_started
+
+  ms-user:
+    build:
+      context: ./ms-user
+      dockerfile: Dockerfile
+    container_name: ms-user
+    restart: unless-stopped
+    mem_limit: 512m
     ports:
       - "8081:8081"
     environment:
@@ -177,12 +225,13 @@ services:
       redis:
         condition: service_healthy
 
-  product-service:
+  ms-product:
     build:
-      context: ./product-service
+      context: ./ms-product
       dockerfile: Dockerfile
-    container_name: product-service
+    container_name: ms-product
     restart: unless-stopped
+    mem_limit: 512m
     ports:
       - "8082:8082"
       - "9090:9090"
@@ -207,12 +256,13 @@ services:
       minio:
         condition: service_healthy
 
-  inventory-service:
+  ms-inventory:
     build:
-      context: ./inventory-service
+      context: ./ms-inventory
       dockerfile: Dockerfile
-    container_name: inventory-service
+    container_name: ms-inventory
     restart: unless-stopped
+    mem_limit: 512m
     ports:
       - "8083:8083"
       - "9091:9091"
@@ -234,12 +284,13 @@ services:
       kafka:
         condition: service_healthy
 
-  cart-service:
+  ms-cart:
     build:
-      context: ./cart-service
+      context: ./ms-cart
       dockerfile: Dockerfile
-    container_name: cart-service
+    container_name: ms-cart
     restart: unless-stopped
+    mem_limit: 512m
     ports:
       - "8084:8084"
     environment:
@@ -248,8 +299,8 @@ services:
       SPRING_CLOUD_VAULT_TOKEN: root-token
       SPRING_DATA_REDIS_HOST: redis
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      GRPC_PRODUCT_SERVICE_HOST: product-service
-      GRPC_INVENTORY_SERVICE_HOST: inventory-service
+      GRPC_PRODUCT_SERVICE_HOST: ms-product
+      GRPC_INVENTORY_SERVICE_HOST: ms-inventory
     networks:
       - ecommerce-network
     depends_on:
@@ -261,17 +312,18 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
-      product-service:
+      ms-product:
         condition: service_started
-      inventory-service:
+      ms-inventory:
         condition: service_started
 
-  order-service:
+  ms-order:
     build:
-      context: ./order-service
+      context: ./ms-order
       dockerfile: Dockerfile
-    container_name: order-service
+    container_name: ms-order
     restart: unless-stopped
+    mem_limit: 512m
     ports:
       - "8085:8085"
     environment:
@@ -280,9 +332,9 @@ services:
       SPRING_CLOUD_VAULT_TOKEN: root-token
       SPRING_DATA_REDIS_HOST: redis
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      GRPC_PRODUCT_SERVICE_HOST: product-service
-      GRPC_INVENTORY_SERVICE_HOST: inventory-service
-      CART_SERVICE_URL: http://cart-service:8084/api/v1
+      GRPC_PRODUCT_SERVICE_HOST: ms-product
+      GRPC_INVENTORY_SERVICE_HOST: ms-inventory
+      CART_SERVICE_URL: http://ms-cart:8084/api/v1
     networks:
       - ecommerce-network
     depends_on:
@@ -294,19 +346,20 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
-      product-service:
+      ms-product:
         condition: service_started
-      inventory-service:
+      ms-inventory:
         condition: service_started
-      cart-service:
+      ms-cart:
         condition: service_started
 
-  payment-service:
+  ms-payment:
     build:
-      context: ./payment-service
+      context: ./ms-payment
       dockerfile: Dockerfile
-    container_name: payment-service
+    container_name: ms-payment
     restart: unless-stopped
+    mem_limit: 512m
     ports:
       - "8086:8086"
     environment:
@@ -319,7 +372,7 @@ services:
       KAPITALBANK_USERNAME: TerminalSys/kapital
       KAPITALBANK_PASSWORD: kapital123
       KAPITALBANK_CALLBACK_BASE_URL: https://yoursite.com/api/v1
-      ORDER_SERVICE_URL: http://order-service:8085/api/v1
+      ORDER_SERVICE_URL: http://ms-order:8085/api/v1
     networks:
       - ecommerce-network
     depends_on:
@@ -331,15 +384,16 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
-      order-service:
+      ms-order:
         condition: service_started
 
-  notification-service:
+  ms-notification:
     build:
-      context: ./notification-service
+      context: ./ms-notification
       dockerfile: Dockerfile
-    container_name: notification-service
+    container_name: ms-notification
     restart: unless-stopped
+    mem_limit: 512m
     ports:
       - "8087:8087"
     environment:
@@ -348,7 +402,7 @@ services:
       SPRING_CLOUD_VAULT_TOKEN: root-token
       SPRING_DATA_REDIS_HOST: redis
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      USER_SERVICE_URL: http://user-service:8081/api/v1
+      USER_SERVICE_URL: http://ms-user:8081/api/v1
     networks:
       - ecommerce-network
     depends_on:
@@ -360,7 +414,22 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
-      user-service:
+      ms-user:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: unless-stopped
+    mem_limit: 64m
+    ports:
+      - "80:80"
+    networks:
+      - ecommerce-network
+    depends_on:
+      ms-api-gateway:
         condition: service_started
 
 networks:
